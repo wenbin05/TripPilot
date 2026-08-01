@@ -4,8 +4,9 @@ TripPilot is a portfolio project for a constraint-aware AI travel-planning
 assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
-This repository currently contains the product and engineering foundation for
-the first MVP. It intentionally contains no application implementation.
+This repository contains the product and engineering foundation for the first
+MVP plus the Milestone 1 deterministic domain core. It intentionally contains
+no HTTP API, planning service, provider adapter, or frontend implementation.
 
 ## First MVP
 
@@ -38,7 +39,7 @@ background workers, or production deployment.
 
 ## Technical foundation
 
-- MVP backend: a `pyproject.toml`-based Python package using FastAPI, strict
+- MVP backend: a `pyproject.toml`-based Python 3.14 package using FastAPI, strict
   Pydantic boundary schemas, frozen domain dataclasses where framework
   independence is useful, JSON mock fixtures, and pytest
 - Later: PostgreSQL, Next.js, Docker, and a hosted LLM API
@@ -84,6 +85,7 @@ sequence begins with the domain schemas and deterministic validator described in
 
 ## Status
 
-Planning and repository scaffolding only. No application code, dependency
-manifest, database, external provider, or deployment configuration has been
-added yet.
+Milestone 1 provides the Python package, strict domain boundary schemas,
+deterministic itinerary validator, and focused offline unit tests. No database,
+external provider, HTTP API, planning algorithm, frontend, or deployment
+configuration has been added.
