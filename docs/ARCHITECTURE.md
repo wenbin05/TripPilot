@@ -1,0 +1,208 @@
+# Architecture
+
+## 1. Architectural stance
+
+The MVP is a modular monolith with a deterministic domain core. FastAPI and
+Pydantic form the delivery and schema boundary; pure Python performs all hard
+constraint checks. Mock provider adapters supply every travel record. No network
+access, database, frontend, container, or LLM is required for the initial
+deterministic slice.
+
+## 2. Logical flow
+
+```text
+Client
+  -> FastAPI route
+  -> strict request schema
+  -> planning service
+       -> TravelDataProvider interface -> mock fixtures
+       -> future Planner interface      -> deterministic baseline, then one agent
+  -> deterministic itinerary validator
+  -> strict response schema
+  -> Client
+```
+
+The planning service may retry or repair a proposal synchronously later. A plan
+is returned as valid only after deterministic validation succeeds.
+
+## 3. Repository boundaries
+
+```text
+backend/src/trippilot/
+├── api/          HTTP routes, dependency wiring, request/response translation
+├── domain/       entities, value objects, rules, validator, domain errors
+├── providers/    provider protocols and mock adapters
+└── services/     use-case orchestration and planning workflow
+
+backend/tests/
+├── unit/         pure domain and service rule tests
+├── contract/     schemas, fixture validity, and provider conformance
+└── integration/  API-to-mock-provider flows
+
+data/mock/        versioned, human-reviewable travel fixtures
+frontend/         reserved for a later Next.js client
+```
+
+Dependency direction is `api -> services -> domain`; providers implement
+protocols owned at an inward-facing boundary. The domain must not import
+FastAPI, provider SDKs, persistence libraries, or LLM libraries.
+
+## 4. Core model
+
+Core modelling decisions:
+
+- `TripRequest`: normalized user constraints.
+- `Money`: non-negative integer `amount_minor` and ISO currency.
+- `TimeWindow`: timezone-aware start (inclusive) and end (exclusive).
+- `ProviderRecord`: versioned mock source record with stable ID.
+- `ScheduledItem`: a time-blocking activity, meal, or transport segment with a
+  strictly positive duration, source reference, location, pricing basis, and
+  estimated cost.
+- `AccommodationStay`: a separately modelled stay with check-in/check-out facts,
+  number of nights, pricing basis, and estimated cost. It does not block the
+  itinerary calendar and is excluded from overlap validation.
+- `NonBlockingMarker`: an explicitly non-blocking event such as an informational
+  checkpoint. It may have zero duration and is excluded from overlap validation.
+- `Itinerary`: ordered scheduled items, accommodation stays, optional markers,
+  category cost breakdown, all-in total, assumptions, and disclosures.
+- `Violation`: stable code, message, severity, and affected field/item IDs.
+- `ValidationReport`: `is_valid` plus an ordered collection of violations.
+
+Use strict Pydantic models that reject unknown fields at API, provider, fixture,
+and future LLM boundaries. Use frozen domain dataclasses where framework
+independence is useful.
+
+## 5. Deterministic validator
+
+The validator is a pure function of normalized request, itinerary, and provider
+snapshot. It performs no I/O and returns all detected violations in stable
+order. Proposed validation phases:
+
+1. Structural integrity and referential checks.
+2. Inclusive destination-local date, timezone, strictly positive scheduled
+   duration, arrival, and departure checks.
+3. Ordering and overlap checks for time-blocking scheduled items only, followed
+   by earliest-start, opening-hours, and transfer-time checks.
+4. Traveller/pricing-basis and currency checks.
+5. Exact subtotal, fee, total, and budget checks.
+6. Required disclosure and provenance checks at the response boundary.
+
+Use stable machine-readable codes such as `TRIP_LENGTH_OUT_OF_RANGE`,
+`ITEM_OVERLAP`, `ACTIVITY_TOO_EARLY`, `INSUFFICIENT_TRANSFER_TIME`,
+`CURRENCY_MISMATCH`, and `BUDGET_EXCEEDED`.
+
+## 6. Money, dates, and timezones
+
+- Represent money in integer minor units. Currency conversion is outside MVP.
+- Define start and end dates as inclusive destination-local calendar days.
+- Represent the corresponding trip-date envelope as the half-open interval
+  `[start_date 00:00, end_date + 1 day 00:00)` in the destination timezone.
+- Use arrival transport completion as the beginning of the usable activity
+  window on the first partial day and departure transport start as its end on
+  the last partial day.
+- Validate inbound and outbound transport against the inclusive trip-date
+  envelope, not against the usable activity window that those segments define.
+  Validate activities, meals, and local transfers against both the date envelope
+  and the usable activity window.
+- Require IANA timezone names on mock cities and timezone-aware itinerary
+  timestamps.
+- Require strictly positive durations for scheduled activities, meals, and
+  transport. Permit zero duration only for explicit `NonBlockingMarker` values.
+- Treat scheduled-item intervals as half-open `[start, end)` so adjacent items do
+  not overlap. Accommodation stays and non-blocking markers are excluded from
+  overlap validation.
+- Make transfer time an explicit scheduled item or validate the gap between
+  consecutive located items against mock transfer data.
+
+## 7. Budget model
+
+The request budget is one all-in estimated total for all travellers in a single
+currency. The authoritative deterministic calculation includes transport to
+and from the destination, accommodation, activities, mock meal estimates, and
+explicit fees or taxes. Per-person and per-group provider prices are normalized
+against traveller count before aggregation. Visible category totals must sum
+exactly to the all-in total, which must not exceed the request budget.
+
+## 8. Provider interfaces
+
+Define narrow protocols according to domain needs, not vendor responses. An
+initial `TravelDataProvider` should expose destination metadata, transport,
+accommodation, activities, operating windows, prices, and transfer estimates from a
+versioned snapshot. The mock adapter reads versioned JSON fixtures and validates
+them through strict Pydantic fixture schemas at load time.
+
+Future live adapters translate external responses into the same internal
+records. Provider-specific identifiers and raw payloads remain outside the
+domain model except for traceable source metadata.
+
+## 9. Planning and future agent boundary
+
+Start with a deterministic planner or curated candidate assembler to exercise
+the validator. Later, one coordinator agent may:
+
+- interpret interests and trade-offs;
+- choose among mock provider candidates;
+- assemble a structured proposal; and
+- explain decisions and validator feedback.
+
+The agent receives bounded, schema-validated context and must emit a strict
+structured proposal. It cannot waive hard constraints, calculate authoritative
+totals, access tools directly, spawn runtime agents, or claim booking success.
+The service validates its output and controls any bounded retry.
+
+## 10. API outline
+
+The first future endpoint can be `POST /api/v1/itineraries/plan` with a
+`TripPlanRequest` body and an `ItineraryResponse`. Use conventional status codes:
+`422` for schema errors, `200` for a generated response (including structured
+planning failure where appropriate), and `500` only for unexpected errors.
+Expose a simple local health endpoint only when implementation starts.
+
+Do not expose raw exceptions, prompts, provider payloads, or stack traces.
+
+## 11. Persistence and deployment
+
+There is no persistence in the first MVP. Requests, proposals, and validation
+reports live only for a request. PostgreSQL may later persist normalized plans
+and provider snapshots behind repository interfaces. Next.js, Docker, hosted
+LLMs, and production deployment are later architecture decisions and should not
+shape the first domain API beyond clean boundaries.
+
+## 12. Test strategy
+
+- Table-driven unit tests for every domain rule and boundary condition.
+- Contract tests for Pydantic schemas, mock fixture validation, and provider
+  protocol behavior.
+- Integration tests from API request through mock provider to validated response.
+- Golden scenarios for representative trips; assert semantics and invariants,
+  not fragile prose.
+- Property-based testing may be considered later, but is not an initial
+  dependency requirement.
+
+## 13. Initial technical decisions
+
+- Package the backend as a `pyproject.toml`-based Python project.
+- Use strict Pydantic schemas at all system boundaries.
+- Use frozen domain dataclasses where framework independence is useful.
+- Store mock provider data as JSON and validate it through strict fixture
+  schemas before domain use.
+- Use pytest for unit, contract, and integration tests.
+
+## 14. Proposed implementation sequence
+
+1. Establish the `pyproject.toml`-based Python package and pytest configuration.
+2. Implement `Money`, date/time primitives, strict request/response schemas, and
+   their tests.
+3. Implement validator rules one at a time with failing-then-passing unit tests.
+4. Define the provider protocol and a small strict-schema-validated JSON fixture
+   set.
+5. Add a deterministic planning service and integration scenarios.
+6. Add the FastAPI route and error mapping.
+7. Evaluate the deterministic slice before considering the coordinator agent.
+
+## 15. Architecture decisions that can wait
+
+- Exact supported Python version and build backend within `pyproject.toml`.
+- Whether a failed planning attempt returns `200` with a failure object or a
+  conflict-style status such as `409`.
+- Candidate-selection algorithm for the deterministic baseline.
