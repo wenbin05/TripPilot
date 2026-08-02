@@ -5,10 +5,11 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP through Milestone 5: the deterministic domain core, validated mock
+MVP through Milestone 6: the deterministic domain core, validated mock
 travel-data provider, bounded deterministic planner, local FastAPI delivery
-layer, and a responsive Next.js planning interface. It intentionally contains
-no live provider, persistence, or booking functionality.
+layer, responsive Next.js planning interface, and a recorded passing
+deterministic acceptance baseline. It intentionally contains no live provider,
+persistence, or booking functionality.
 
 ## First MVP
 
@@ -154,12 +155,14 @@ rejects wildcard configuration.
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Security](docs/SECURITY.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
+- [Deterministic MVP acceptance report](docs/DETERMINISTIC_MVP_ACCEPTANCE.md)
 - [Contributor and agent guidance](AGENTS.md)
 
 ## Status
 
-Milestones 1 through 5 provide the Python package, strict boundary schemas,
+Milestones 1 through 6 provide the Python package, strict boundary schemas,
 deterministic itinerary validator and planner, versioned synthetic JSON snapshot,
-offline mock provider, local FastAPI endpoints, and a responsive one-page
-Next.js client. No database, external provider, LLM, authentication, booking,
-or deployment configuration has been added.
+offline mock provider, local FastAPI endpoints, a responsive one-page Next.js
+client, and the passing deterministic acceptance baseline documented in
+`docs/DETERMINISTIC_MVP_ACCEPTANCE.md`. No database, external provider, LLM,
+authentication, booking, or deployment configuration has been added.
