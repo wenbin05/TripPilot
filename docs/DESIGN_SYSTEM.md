@@ -125,10 +125,21 @@ Constraint failure:
 Avoid vague failures such as “Something went wrong” when a safe, structured
 domain reason is available.
 
-## 9. Decisions for UI implementation
+## 9. Milestone 5 UI decisions
+
+- The first Next.js experience is one responsive page with grouped form sections
+  and results below the editable inputs.
+- Scheduled items use a chronological day-card timeline. Accommodation remains
+  in a separate, explicitly non-time-blocking section.
+- The CSS implementation uses the semantic token values in this document,
+  native controls, a mobile-first single column, and a summary rail at wider
+  breakpoints. No component framework or travel imagery is required.
+- CAD and USD estimates display two decimal minor units. Timestamps are grouped
+  and formatted with the destination IANA timezone returned by the API.
+
+## 10. Decisions that can wait
 
 - Final brand identity, typeface, and illustration direction.
-- Whether the first Next.js experience is a single page or short stepper.
 - Display convention for taxes and category estimates.
 - Map usage; no map is required for the first MVP.
 - Localization and bilingual English/French support timeline.

@@ -2,16 +2,16 @@
 
 ## 1. Architectural stance
 
-The MVP is a modular monolith with a deterministic domain core. FastAPI and
-Pydantic form the delivery and schema boundary; pure Python performs all hard
-constraint checks. Mock provider adapters supply every travel record. No network
-access, database, frontend, container, or LLM is required for the initial
-deterministic slice.
+The MVP is a modular monolith with a deterministic domain core and a thin
+Next.js client. FastAPI and Pydantic form the authoritative delivery and schema
+boundary; pure Python performs all hard constraint checks. Mock provider
+adapters supply every travel record. No external network access, database,
+container, or LLM is required for the local MVP.
 
 ## 2. Logical flow
 
 ```text
-Client
+Browser -> Next.js single-page client
   -> FastAPI route
   -> strict request schema
   -> planning service
@@ -40,7 +40,7 @@ backend/tests/
 └── integration/  API-to-mock-provider flows
 
 data/mock/        versioned, human-reviewable travel fixtures
-frontend/         reserved for a later Next.js client
+frontend/         Next.js App Router UI, explicit API types, display-only grouping
 ```
 
 Dependency direction is `api -> services -> domain`; providers implement
@@ -216,10 +216,11 @@ claims; production rate limits and operational controls remain future work.
 ## 11. Persistence and deployment
 
 There is no persistence in the first MVP. Requests, proposals, and validation
-reports live only for a request. PostgreSQL may later persist normalized plans
-and provider snapshots behind repository interfaces. Next.js, Docker, hosted
-LLMs, and production deployment are later architecture decisions and should not
-shape the first domain API beyond clean boundaries.
+reports live only in browser state and for the duration of an API request.
+PostgreSQL may later persist normalized plans and provider snapshots behind
+repository interfaces. Docker, hosted LLMs, and production deployment are later
+architecture decisions and should not shape the domain API beyond clean
+boundaries.
 
 ## 12. Test strategy
 
@@ -251,7 +252,8 @@ shape the first domain API beyond clean boundaries.
    set.
 5. Add a deterministic planning service and integration scenarios.
 6. Add the FastAPI route and error mapping. (Milestone 4 complete.)
-7. Evaluate the deterministic slice before considering the coordinator agent.
+7. Add the thin Next.js planning and results interface. (Milestone 5 complete.)
+8. Evaluate the deterministic MVP before considering the coordinator agent.
 
 ## 15. Architecture decisions that can wait
 

@@ -244,3 +244,36 @@ def test_api_requires_no_network_or_secrets(
 
     assert response.status_code == 200
     assert response.json()["status"] == "success"
+
+
+def test_development_cors_allows_only_an_explicit_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TRIPPILOT_CORS_ORIGINS", "http://localhost:3000")
+    cors_app = create_app()
+    with TestClient(cors_app) as cors_client:
+        allowed = cors_client.options(
+            "/api/v1/itineraries/plan",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        blocked = cors_client.options(
+            "/api/v1/itineraries/plan",
+            headers={
+                "Origin": "http://example.test",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "access-control-allow-origin" not in blocked.headers
+
+
+@pytest.mark.parametrize("origin", ["*", "https://example.test"])
+def test_cors_rejects_non_local_configuration(origin: str) -> None:
+    with pytest.raises(ValueError, match="local"):
+        create_app(cors_origins=(origin,))
