@@ -453,7 +453,9 @@ def _provider_snapshot(
     zone = ZoneInfo(request.destination_timezone)
     operating: list[OperatingWindow] = []
     for item in itinerary.scheduled_items:
-        if item.kind is not ItemKind.ACTIVITY or item.source_record_id is None:
+        if item.kind not in {ItemKind.ACTIVITY, ItemKind.MEAL} or (
+            item.source_record_id is None
+        ):
             continue
         for window in provider.get_operating_windows(item.source_record_id):
             local_day = item.window.start.astimezone(zone).date()

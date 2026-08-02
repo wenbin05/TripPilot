@@ -486,6 +486,19 @@ def test_activity_outside_operating_hours_is_invalid() -> None:
     )
 
 
+def test_meal_outside_operating_hours_is_invalid() -> None:
+    meal = item("meal", ItemKind.MEAL, dt(10, 15), dt(10, 16), 0, "m", "cafe")
+    itinerary = replace(empty_itinerary(), scheduled_items=(meal,))
+    snapshot = ProviderSnapshot(
+        frozenset({"m"}),
+        operating_windows=(OperatingWindow("m", TimeWindow(dt(10, 11), dt(10, 14))),),
+    )
+
+    assert "OUTSIDE_OPERATING_WINDOW" in codes(
+        validate_itinerary(request(), itinerary, snapshot)
+    )
+
+
 @pytest.mark.parametrize(
     ("start", "end"),
     [(dt(10, 9, 59), dt(10, 11)), (dt(11, 17), dt(11, 18, 1))],

@@ -403,6 +403,7 @@ def validate_itinerary(
                         item.item_id,
                     )
                 )
+        if item.kind in {ItemKind.ACTIVITY, ItemKind.MEAL}:
             has_operating_windows = provider_snapshot is not None and any(
                 entry.record_id == item.source_record_id
                 for entry in provider_snapshot.operating_windows
@@ -413,7 +414,8 @@ def validate_itinerary(
                 violations.append(
                     _violation(
                         "OUTSIDE_OPERATING_WINDOW",
-                        "Activity is not contained in a supplied operating window.",
+                        "Scheduled item is not contained in a supplied operating "
+                        "window.",
                         item.item_id,
                     )
                 )
