@@ -5,9 +5,9 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP, the Milestone 1 deterministic domain core, and the Milestone 2 validated
-mock travel-data provider. It intentionally contains no HTTP API, planning
-service, live provider, or frontend implementation.
+MVP, the Milestone 1 deterministic domain core, the Milestone 2 validated mock
+travel-data provider, and the Milestone 3 deterministic itinerary planner. It
+intentionally contains no HTTP API, live provider, or frontend implementation.
 
 ## First MVP
 
@@ -86,8 +86,8 @@ sequence begins with the domain schemas and deterministic validator described in
 
 ## Status
 
-Milestones 1 and 2 provide the Python package, strict domain and provider
+Milestones 1 through 3 provide the Python package, strict domain and provider
 boundary schemas, deterministic itinerary validator, a versioned synthetic JSON
-snapshot, an offline mock provider adapter, and focused offline tests. No
-database, external provider, HTTP API, planning algorithm, frontend, or
-deployment configuration has been added.
+snapshot, an offline mock provider adapter, and a bounded deterministic planning
+service with structured success and failure results. No database, external
+provider, HTTP API, LLM, frontend, or deployment configuration has been added.

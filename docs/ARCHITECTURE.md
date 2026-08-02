@@ -137,8 +137,43 @@ domain model except for traceable source metadata.
 
 ## 9. Planning and future agent boundary
 
-Start with a deterministic planner or curated candidate assembler to exercise
-the validator. Later, one coordinator agent may:
+The Milestone 3 baseline planner is deterministic and bounded. It:
+
+1. filters transport, accommodation, activity, and meal records by route,
+   destination, trip date, currency, and stay length;
+2. considers at most 32 transport/accommodation combinations ordered by fixed
+   all-traveller cost, boundary travel duration, and stable record IDs;
+3. enumerates at most 5,000 activity-and-meal agenda variants per day, trying
+   the pace target before smaller activity counts;
+4. ranks feasible daily agendas by activity count, requested-interest matches,
+   normalized cost, shortest-path transfer minutes, and stable record IDs, then
+   retries the same bounded agenda space cost-first when the preferred agenda is
+   over budget;
+5. schedules records at the earliest legal instant within destination-local
+   operating windows and reserves gaps for the shortest directed path through
+   supplied transfer estimates;
+6. includes one mock meal estimate per usable destination day, normalizes
+   provider prices and attached fees using integer minor units, and preserves
+   category totals; and
+7. returns success only after the complete deterministic validator reports no
+   violations.
+
+The planner may reuse an activity record on different trip days when the small
+fixture cannot otherwise approach the requested pace. It never repeats the same
+activity within one day. Pace and interest coverage remain soft preferences;
+missing transfer paths, operating-window conflicts, request boundaries, and the
+all-in budget are never relaxed.
+
+Expected inability to plan is represented by frozen structured results rather
+than exceptions. Stable failure codes distinguish invalid requests, unsupported
+routes, missing transport or accommodation, infeasible activity sets,
+insufficient budget, validator rejection, and incomplete provider data. Results
+include the validation report, relevant constraints, fixture snapshot version,
+planner identifier, assumptions, and no-booking disclosures. Provider-boundary
+exceptions are converted to a generic incomplete-data failure without exposing
+the provider exception message.
+
+Later, one coordinator agent may:
 
 - interpret interests and trade-offs;
 - choose among mock provider candidates;
@@ -205,4 +240,3 @@ shape the first domain API beyond clean boundaries.
 - Exact supported Python version and build backend within `pyproject.toml`.
 - Whether a failed planning attempt returns `200` with a failure object or a
   conflict-style status such as `409`.
-- Candidate-selection algorithm for the deterministic baseline.
