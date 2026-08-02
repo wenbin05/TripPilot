@@ -185,15 +185,33 @@ structured proposal. It cannot waive hard constraints, calculate authoritative
 totals, access tools directly, spawn runtime agents, or claim booking success.
 The service validates its output and controls any bounded retry.
 
-## 10. API outline
+## 10. API delivery layer
 
-The first future endpoint can be `POST /api/v1/itineraries/plan` with a
-`TripPlanRequest` body and an `ItineraryResponse`. Use conventional status codes:
-`422` for schema errors, `200` for a generated response (including structured
-planning failure where appropriate), and `500` only for unexpected errors.
-Expose a simple local health endpoint only when implementation starts.
+Milestone 4 exposes `GET /health` and `POST /api/v1/itineraries/plan` from the
+application entry point `trippilot.api.app:app`. The planning request is a strict
+flat JSON object using integer `total_budget_minor` plus `currency`; destination
+timezone is resolved from the provider snapshot rather than accepted as an
+untrusted user input.
 
-Do not expose raw exceptions, prompts, provider payloads, or stack traces.
+The planning endpoint has a stable discriminated envelope. A success uses
+`status: "success"` and includes the normalized request, proposed itinerary,
+cost breakdown, validation report, matched interests, planning rationale,
+assumptions, warnings, fixture snapshot version, planner identifier, and
+mock-data/no-booking disclosures. An expected inability to plan uses
+`status: "planning_failure"`
+with a stable failure code, generic explanation, relevant constraints,
+validation report, identifiers, assumptions, warnings, and the same disclosures.
+
+Both validator-clean success and expected planning failure return `200`. A body
+that fails the public schema returns a sanitized `422`; only an unexpected
+application-boundary failure returns a generic `500`. This resolves the earlier
+open question about `200` versus a conflict-style status for planning failures.
+Public errors never include raw exceptions, prompts, provider payloads, stack
+traces, fixture contents, or filesystem paths.
+
+The local HTTP boundary caps request bodies at 32 KiB and total request handling
+at 10 seconds. These are local safety limits rather than production readiness
+claims; production rate limits and operational controls remain future work.
 
 ## 11. Persistence and deployment
 
@@ -232,11 +250,9 @@ shape the first domain API beyond clean boundaries.
 4. Define the provider protocol and a small strict-schema-validated JSON fixture
    set.
 5. Add a deterministic planning service and integration scenarios.
-6. Add the FastAPI route and error mapping.
+6. Add the FastAPI route and error mapping. (Milestone 4 complete.)
 7. Evaluate the deterministic slice before considering the coordinator agent.
 
 ## 15. Architecture decisions that can wait
 
 - Exact supported Python version and build backend within `pyproject.toml`.
-- Whether a failed planning attempt returns `200` with a failure object or a
-  conflict-style status such as `409`.

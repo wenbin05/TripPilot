@@ -5,9 +5,9 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP, the Milestone 1 deterministic domain core, the Milestone 2 validated mock
-travel-data provider, and the Milestone 3 deterministic itinerary planner. It
-intentionally contains no HTTP API, live provider, or frontend implementation.
+MVP through Milestone 4: the deterministic domain core, validated mock
+travel-data provider, bounded deterministic planner, and a local FastAPI
+delivery layer. It intentionally contains no live provider or frontend.
 
 ## First MVP
 
@@ -71,9 +71,25 @@ background workers, or production deployment.
 └── frontend/                 # Reserved for the later Next.js client
 ```
 
-Empty directories are retained with `.gitkeep` files. The proposed implementation
-sequence begins with the domain schemas and deterministic validator described in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## Local backend development
+
+Python 3.14 is required. From the repository root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e './backend[dev]'
+cd backend
+pytest
+ruff format --check src tests
+ruff check src tests
+uvicorn trippilot.api.app:app --reload
+```
+
+The API is then available at `http://127.0.0.1:8000`. Open
+`http://127.0.0.1:8000/docs` for generated interactive documentation. The local
+service uses only the versioned JSON mock snapshot and requires no secrets or
+network access while running.
 
 ## Documentation
 
@@ -86,8 +102,7 @@ sequence begins with the domain schemas and deterministic validator described in
 
 ## Status
 
-Milestones 1 through 3 provide the Python package, strict domain and provider
-boundary schemas, deterministic itinerary validator, a versioned synthetic JSON
-snapshot, an offline mock provider adapter, and a bounded deterministic planning
-service with structured success and failure results. No database, external
-provider, HTTP API, LLM, frontend, or deployment configuration has been added.
+Milestones 1 through 4 provide the Python package, strict boundary schemas,
+deterministic itinerary validator and planner, versioned synthetic JSON snapshot,
+offline mock provider, and local FastAPI endpoints. No database, external
+provider, LLM, frontend, or deployment configuration has been added.
