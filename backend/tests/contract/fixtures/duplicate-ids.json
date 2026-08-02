@@ -1,0 +1,7 @@
+{
+  "metadata": {"snapshot_version":"test.v1","source_label":"Synthetic invalid test fixture","scenario_id":"duplicate-test","generated_at":"2026-08-01T00:00:00Z","supported_currencies":["CAD"]},
+  "records": [
+    {"record_id":"same-id","record_type":"location","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"same-id","currency":"CAD","name":"First","kind":"city","timezone":"America/Toronto","zone":"Test"},
+    {"record_id":"same-id","record_type":"location","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"same-id","currency":"CAD","name":"Second","kind":"city","timezone":"America/Toronto","zone":"Test"}
+  ]
+}

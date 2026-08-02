@@ -1,0 +1,8 @@
+{
+  "metadata": {"snapshot_version":"test.v1","source_label":"Synthetic invalid test fixture","scenario_id":"price-test","generated_at":"2026-08-01T00:00:00Z","supported_currencies":["CAD"]},
+  "records": [
+    {"record_id":"loc-origin","record_type":"location","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"loc-origin","currency":"CAD","name":"Origin","kind":"transit","timezone":"America/Toronto","zone":"Test"},
+    {"record_id":"loc-destination","record_type":"location","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"loc-destination","currency":"CAD","name":"Destination","kind":"transit","timezone":"America/Toronto","zone":"Test"},
+    {"record_id":"bad-price","record_type":"transport","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"loc-destination","currency":"CAD","title":"Invalid negative estimate","mode":"coach","origin":"Origin, Ontario","destination":"Destination, Ontario","origin_location_id":"loc-origin","destination_location_id":"loc-destination","departure_at":"2026-08-10T08:00:00-04:00","arrival_at":"2026-08-10T09:00:00-04:00","price":{"amount_minor":-1,"currency":"CAD","basis":"per_person"},"tags":[]}
+  ]
+}
