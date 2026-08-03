@@ -1,0 +1,6 @@
+{
+  "metadata": {"snapshot_version":"test.v1","source_label":"Synthetic invalid test fixture","scenario_id":"reference-test","generated_at":"2026-08-01T00:00:00Z","supported_currencies":["CAD"]},
+  "records": [
+    {"record_id":"loc-test","record_type":"location","source_label":"Synthetic invalid test fixture","snapshot_version":"test.v1","location_id":"missing-location","currency":"CAD","name":"Broken place","kind":"city","timezone":"America/Toronto","zone":"Test"}
+  ]
+}

@@ -2,16 +2,16 @@
 
 ## 1. Architectural stance
 
-The MVP is a modular monolith with a deterministic domain core. FastAPI and
-Pydantic form the delivery and schema boundary; pure Python performs all hard
-constraint checks. Mock provider adapters supply every travel record. No network
-access, database, frontend, container, or LLM is required for the initial
-deterministic slice.
+The MVP is a modular monolith with a deterministic domain core and a thin
+Next.js client. FastAPI and Pydantic form the authoritative delivery and schema
+boundary; pure Python performs all hard constraint checks. Mock provider
+adapters supply every travel record. No external network access, database,
+container, or LLM is required for the local MVP.
 
 ## 2. Logical flow
 
 ```text
-Client
+Browser -> Next.js single-page client
   -> FastAPI route
   -> strict request schema
   -> planning service
@@ -40,7 +40,7 @@ backend/tests/
 └── integration/  API-to-mock-provider flows
 
 data/mock/        versioned, human-reviewable travel fixtures
-frontend/         reserved for a later Next.js client
+frontend/         Next.js App Router UI, explicit API types, display-only grouping
 ```
 
 Dependency direction is `api -> services -> domain`; providers implement
@@ -137,8 +137,43 @@ domain model except for traceable source metadata.
 
 ## 9. Planning and future agent boundary
 
-Start with a deterministic planner or curated candidate assembler to exercise
-the validator. Later, one coordinator agent may:
+The Milestone 3 baseline planner is deterministic and bounded. It:
+
+1. filters transport, accommodation, activity, and meal records by route,
+   destination, trip date, currency, and stay length;
+2. considers at most 32 transport/accommodation combinations ordered by fixed
+   all-traveller cost, boundary travel duration, and stable record IDs;
+3. enumerates at most 5,000 activity-and-meal agenda variants per day, trying
+   the pace target before smaller activity counts;
+4. ranks feasible daily agendas by activity count, requested-interest matches,
+   normalized cost, shortest-path transfer minutes, and stable record IDs, then
+   retries the same bounded agenda space cost-first when the preferred agenda is
+   over budget;
+5. schedules records at the earliest legal instant within destination-local
+   operating windows and reserves gaps for the shortest directed path through
+   supplied transfer estimates;
+6. includes one mock meal estimate per usable destination day, normalizes
+   provider prices and attached fees using integer minor units, and preserves
+   category totals; and
+7. returns success only after the complete deterministic validator reports no
+   violations.
+
+The planner may reuse an activity record on different trip days when the small
+fixture cannot otherwise approach the requested pace. It never repeats the same
+activity within one day. Pace and interest coverage remain soft preferences;
+missing transfer paths, operating-window conflicts, request boundaries, and the
+all-in budget are never relaxed.
+
+Expected inability to plan is represented by frozen structured results rather
+than exceptions. Stable failure codes distinguish invalid requests, unsupported
+routes, missing transport or accommodation, infeasible activity sets,
+insufficient budget, validator rejection, and incomplete provider data. Results
+include the validation report, relevant constraints, fixture snapshot version,
+planner identifier, assumptions, and no-booking disclosures. Provider-boundary
+exceptions are converted to a generic incomplete-data failure without exposing
+the provider exception message.
+
+Later, one coordinator agent may:
 
 - interpret interests and trade-offs;
 - choose among mock provider candidates;
@@ -150,23 +185,42 @@ structured proposal. It cannot waive hard constraints, calculate authoritative
 totals, access tools directly, spawn runtime agents, or claim booking success.
 The service validates its output and controls any bounded retry.
 
-## 10. API outline
+## 10. API delivery layer
 
-The first future endpoint can be `POST /api/v1/itineraries/plan` with a
-`TripPlanRequest` body and an `ItineraryResponse`. Use conventional status codes:
-`422` for schema errors, `200` for a generated response (including structured
-planning failure where appropriate), and `500` only for unexpected errors.
-Expose a simple local health endpoint only when implementation starts.
+Milestone 4 exposes `GET /health` and `POST /api/v1/itineraries/plan` from the
+application entry point `trippilot.api.app:app`. The planning request is a strict
+flat JSON object using integer `total_budget_minor` plus `currency`; destination
+timezone is resolved from the provider snapshot rather than accepted as an
+untrusted user input.
 
-Do not expose raw exceptions, prompts, provider payloads, or stack traces.
+The planning endpoint has a stable discriminated envelope. A success uses
+`status: "success"` and includes the normalized request, proposed itinerary,
+cost breakdown, validation report, matched interests, planning rationale,
+assumptions, warnings, fixture snapshot version, planner identifier, and
+mock-data/no-booking disclosures. An expected inability to plan uses
+`status: "planning_failure"`
+with a stable failure code, generic explanation, relevant constraints,
+validation report, identifiers, assumptions, warnings, and the same disclosures.
+
+Both validator-clean success and expected planning failure return `200`. A body
+that fails the public schema returns a sanitized `422`; only an unexpected
+application-boundary failure returns a generic `500`. This resolves the earlier
+open question about `200` versus a conflict-style status for planning failures.
+Public errors never include raw exceptions, prompts, provider payloads, stack
+traces, fixture contents, or filesystem paths.
+
+The local HTTP boundary caps request bodies at 32 KiB and total request handling
+at 10 seconds. These are local safety limits rather than production readiness
+claims; production rate limits and operational controls remain future work.
 
 ## 11. Persistence and deployment
 
 There is no persistence in the first MVP. Requests, proposals, and validation
-reports live only for a request. PostgreSQL may later persist normalized plans
-and provider snapshots behind repository interfaces. Next.js, Docker, hosted
-LLMs, and production deployment are later architecture decisions and should not
-shape the first domain API beyond clean boundaries.
+reports live only in browser state and for the duration of an API request.
+PostgreSQL may later persist normalized plans and provider snapshots behind
+repository interfaces. Docker, hosted LLMs, and production deployment are later
+architecture decisions and should not shape the domain API beyond clean
+boundaries.
 
 ## 12. Test strategy
 
@@ -197,12 +251,10 @@ shape the first domain API beyond clean boundaries.
 4. Define the provider protocol and a small strict-schema-validated JSON fixture
    set.
 5. Add a deterministic planning service and integration scenarios.
-6. Add the FastAPI route and error mapping.
-7. Evaluate the deterministic slice before considering the coordinator agent.
+6. Add the FastAPI route and error mapping. (Milestone 4 complete.)
+7. Add the thin Next.js planning and results interface. (Milestone 5 complete.)
+8. Evaluate the deterministic MVP before considering the coordinator agent.
 
 ## 15. Architecture decisions that can wait
 
 - Exact supported Python version and build backend within `pyproject.toml`.
-- Whether a failed planning attempt returns `200` with a failure object or a
-  conflict-style status such as `409`.
-- Candidate-selection algorithm for the deterministic baseline.

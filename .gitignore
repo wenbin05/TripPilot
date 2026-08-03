@@ -24,6 +24,7 @@ out/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+*.tsbuildinfo
 
 # Local databases and generated data
 *.db
