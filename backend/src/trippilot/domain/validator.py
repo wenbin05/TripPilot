@@ -1,5 +1,8 @@
 """Pure deterministic validation for normalized TripPilot domain objects."""
 
+# pyright: reportUnnecessaryIsInstance=false
+# Runtime validation intentionally rechecks values received from untyped callers.
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -404,12 +407,15 @@ def validate_itinerary(
                     )
                 )
         if item.kind in {ItemKind.ACTIVITY, ItemKind.MEAL}:
-            has_operating_windows = provider_snapshot is not None and any(
+            snapshot = provider_snapshot
+            has_operating_windows = snapshot is not None and any(
                 entry.record_id == item.source_record_id
-                for entry in provider_snapshot.operating_windows
+                for entry in snapshot.operating_windows
             )
-            if has_operating_windows and not _inside_any_operating_window(
-                item, provider_snapshot.operating_windows
+            if (
+                snapshot is not None
+                and has_operating_windows
+                and not _inside_any_operating_window(item, snapshot.operating_windows)
             ):
                 violations.append(
                     _violation(

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from heapq import heappop, heappush
 from itertools import permutations
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
@@ -32,7 +33,7 @@ from trippilot.domain import (
     ValidationReport,
     validate_itinerary,
 )
-from trippilot.domain.schemas import MoneySchema, TripRequestSchema
+from trippilot.domain.schemas import CurrencyCode, MoneySchema, TripRequestSchema
 from trippilot.providers import (
     AccommodationOptionRecord,
     ActivityRecord,
@@ -64,6 +65,19 @@ DISCLOSURES = (
 )
 
 type SelectableRecord = ActivityRecord | MealOptionRecord
+type LocatedProviderRecord = (
+    AccommodationOptionRecord | ActivityRecord | MealOptionRecord
+)
+type CandidateCombination = tuple[
+    int,
+    int,
+    str,
+    str,
+    str,
+    TransportOptionRecord,
+    TransportOptionRecord,
+    AccommodationOptionRecord | None,
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,7 +149,7 @@ def _request_is_valid(request: TripRequest) -> bool:
             travellers=request.travellers,
             budget=MoneySchema(
                 amount_minor=request.budget.amount_minor,
-                currency=request.budget.currency,
+                currency=cast(CurrencyCode, request.budget.currency),
             ),
             interests=request.interests,
             pace=request.pace,
@@ -251,6 +265,7 @@ def _schedule_sequence(
     request: TripRequest,
     provider: TravelDataProvider,
     graph: _Graph,
+    zone: ZoneInfo,
 ) -> _Agenda | None:
     cursor = day_start
     location = start_location
@@ -262,14 +277,10 @@ def _schedule_sequence(
             return None
         ready = cursor + timedelta(minutes=transfer)
         if isinstance(record, ActivityRecord):
-            earliest = datetime.combine(
-                day, request.earliest_activity_time, day_start.tzinfo
-            )
+            earliest = datetime.combine(day, request.earliest_activity_time, zone)
             ready = max(ready, earliest)
         start = None
-        for window_start, window_end in _operating_windows(
-            provider, record, day, day_start.tzinfo
-        ):
+        for window_start, window_end in _operating_windows(provider, record, day, zone):
             candidate = max(ready, window_start)
             end = candidate + timedelta(minutes=record.duration_minutes)
             if end <= window_end and end <= day_end:
@@ -322,6 +333,7 @@ def _best_agenda(
     provider: TravelDataProvider,
     graph: _Graph,
     cost_first: bool,
+    zone: ZoneInfo,
 ) -> _Agenda | None:
     requested = set(request.interests)
     ordered_activities = tuple(
@@ -364,6 +376,7 @@ def _best_agenda(
                         request=request,
                         provider=provider,
                         graph=graph,
+                        zone=zone,
                     )
                     if agenda is not None:
                         feasible.append(agenda)
@@ -395,12 +408,10 @@ def _best_agenda(
 
 def _graph_for(
     provider: TravelDataProvider,
-    records: Iterable[object],
+    records: Iterable[LocatedProviderRecord],
     transport: tuple[TransportOptionRecord, TransportOptionRecord],
 ) -> _Graph:
-    locations = {
-        record.location_id for record in records if hasattr(record, "location_id")
-    }
+    locations = {record.location_id for record in records}
     locations.update(
         {
             transport[0].destination_location_id,
@@ -503,7 +514,7 @@ def _candidate(
         if activities
         else ()
     )
-    records: tuple[object, ...] = (
+    records: tuple[LocatedProviderRecord, ...] = (
         *activities,
         *meals,
         *transfer_waypoints,
@@ -553,6 +564,7 @@ def _candidate(
             provider=provider,
             graph=graph,
             cost_first=cost_first,
+            zone=zone,
         )
         if agenda is None:
             return None
@@ -768,7 +780,7 @@ def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningRes
                 snapshot_version,
             )
 
-        combinations = []
+        combinations: list[CandidateCombination] = []
         for inbound_record in inbound:
             for outbound_record in outbound:
                 if inbound_record.arrival_at.astimezone(
@@ -829,7 +841,7 @@ def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningRes
         saw_activity_candidate = False
         saw_within_budget = False
         for combination in combinations[:MAX_CANDIDATE_COMBINATIONS]:
-            inbound_record, outbound_record, stay = combination[5:]
+            _, _, _, _, _, inbound_record, outbound_record, stay = combination
             for targets in _daily_target_profiles(request):
                 for cost_first in (False, True):
                     candidate = _candidate(

@@ -17,6 +17,7 @@ dependencies = [
 dev = [
     "httpx2>=2,<3",
     "pytest>=9,<10",
+    "pyright>=1.1.411,<2",
     "ruff>=0.12,<1",
 ]
 
@@ -34,3 +35,8 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pyright]
+include = ["src/trippilot"]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"

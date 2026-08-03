@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends
 
@@ -14,6 +14,7 @@ from .dependencies import Planner, get_planner, get_provider
 from .schemas import (
     AccommodationStayResponse,
     CostBreakdownResponse,
+    CurrencyCode,
     ExplicitFeeResponse,
     HealthResponse,
     InternalErrorResponse,
@@ -47,7 +48,7 @@ PLANNING_RATIONALE = (
 def _money(value: Money) -> MoneyResponse:
     return MoneyResponse(
         amount_minor=value.amount_minor,
-        currency=value.currency,
+        currency=cast(CurrencyCode, value.currency),
     )
 
 

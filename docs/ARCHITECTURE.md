@@ -213,6 +213,23 @@ The local HTTP boundary caps request bodies at 32 KiB and total request handling
 at 10 seconds. These are local safety limits rather than production readiness
 claims; production rate limits and operational controls remain future work.
 
+### API contract ownership
+
+The backend Pydantic models and generated OpenAPI document are authoritative for
+the public HTTP contract. The frontend currently maintains handwritten
+TypeScript types and runtime guards. Until a generated runtime-validation
+approach is approved, every public API change must update the backend schema and
+contract tests, the corresponding TypeScript types and runtime guards, and
+positive and negative frontend guard tests in the same pull request.
+
+Unknown response fields remain a known difference: backend response schemas
+forbid them, while the current frontend guards accept them. Before the
+coordinator milestone changes any public response shape, make an explicit
+decision between continuing handwritten runtime validation and adopting a
+generated contract plus runtime-validation strategy. Generated compile-time
+types alone are insufficient because untrusted HTTP responses still require
+runtime checks.
+
 ## 11. Persistence and deployment
 
 There is no persistence in the first MVP. Requests, proposals, and validation

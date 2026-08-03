@@ -17,16 +17,20 @@ every proposed agent output must pass it before delivery.
 
 ## 2. Revision and fixture
 
-- Git revision at evaluation start: `2427f9abaad4751a40fccf7edd9d813801b139`
+- Initial evaluation base revision: `2427f9abaad4751a40fccf7edd9d813801b139`
 - Branch: `agent/milestone-1-domain-validator`
-- Evaluated workspace: the revision above plus the Milestone 6 validator,
-  planner-snapshot, regression-test, and report changes listed in section 14
-- Blocking-fix commit created after evaluation: `e35513c`
+- Final deterministic code revision evaluated after the blocking fix:
+  `e35513c34c352986a231aa8c6616eed1bf35ae40`
+- Original acceptance-documentation commit:
+  `1e87ba7c59179cb1c018c96e8cd7fe08885973dc` (documentation only; not a
+  different application-code baseline)
 - Fixture: `data/mock/kingston-toronto-v1.json`
 - Snapshot version: `2026-08-01.v1`
 - Planner: `deterministic-greedy-bounded-v1`
 
-No push was performed during the evaluation.
+No push was performed during the evaluation itself. The blocking-fix and
+original acceptance-documentation commits were subsequently pushed to
+`origin/agent/milestone-1-domain-validator`.
 
 ## 3. Environment
 
@@ -73,7 +77,7 @@ Final results after the blocking fix:
 | Backend tests | `cd backend && ../.venv/bin/pytest -q` | PASS — 172 passed in 0.68 s |
 | Backend lint | `cd backend && ../.venv/bin/ruff check src tests` | PASS |
 | Backend formatting | `cd backend && ../.venv/bin/ruff format --check src tests` | PASS — 25 files already formatted |
-| Backend type checking | Configuration inspection | Not configured; no type-check command exists in `pyproject.toml` |
+| Backend type checking | Configuration inspection | Not configured; no type-check command existed in `pyproject.toml` during the original acceptance run |
 | Frontend tests | `cd frontend && npm run test:run` | PASS — 30 passed in 4.76 s |
 | Frontend lint | `cd frontend && npm run lint` | PASS |
 | Strict TypeScript | `cd frontend && npm run typecheck` | PASS |
@@ -86,6 +90,14 @@ HTTP, and mocked frontend fetch calls. No test requires an external travel
 service or a secret. Git inspection found no tracked `.env` file other than
 `.env.example`, no tracked database, no tracked dependency/build directory, and
 no unexpected generated file.
+
+### Post-acceptance quality-gate addendum
+
+On 2026-08-03, the baseline-quality-gates workstream added strict Pyright
+checking. The command
+`cd backend && ../.venv/bin/pyright --pythonpath ../.venv/bin/python` passed with
+0 errors, 0 warnings, and 0 informational diagnostics. This is post-acceptance
+evidence and does not alter the original 2026-08-02 results above.
 
 ## 6. End-to-end acceptance scenarios
 
@@ -101,7 +113,7 @@ no unexpected generated file.
 | 6 | Accommodation overlaps evening activity | Actual activity/stay interval overlap present; no `ITEM_OVERLAP` | PASS |
 | 7 | Earliest-start equality | Activity and earliest time both 10:23; no `ACTIVITY_TOO_EARLY` | PASS |
 | 8 | Interest-matched itinerary | Nature-only relaxed request selected `activity-island-walk`; matched interest `nature` | PASS |
-| 9 | Valid plan at mobile width | Result rendering covered by frontend success test; live 390×844 shell/error layout had no overflow | PASS with browser automation limitation noted below |
+| 9 | Valid browser flow and mobile-width layout | Initial browser submission did not reach the planner because local CORS origins were omitted; after restarting FastAPI with explicit local origins, the browser flow completed successfully. The 390×844 responsive check had no horizontal overflow. | PASS after local configuration correction |
 | 10 | Repeated identical request | 20/20 API responses semantically identical | PASS |
 
 ### Expected-failure scenarios
@@ -124,13 +136,14 @@ no unexpected generated file.
 | 24 | Unknown request field | Sanitized 422 `REQUEST_VALIDATION_ERROR` | PASS |
 | 25 | Prompt-like/malicious text | Treated as a bounded origin label; structured `NO_TRANSPORT_OPTION`; no execution or booking action | PASS |
 
-The valid-plan browser run could not be submitted through the in-app browser
-because that automation surface did not persist values entered into native
-`input[type=date]` controls. This was not reproduced in Vitest or by manual DOM
-inspection and is classified as an evaluation-tool limitation, not a product
-failure. The real success response, result rendering, timezone text,
-accommodation separation, and costs are covered by the passing API and frontend
-tests.
+The initial manual browser submission did not reach the planner: the local
+FastAPI service had been started without configured frontend CORS origins, so
+the preflight request returned `405`. After FastAPI was restarted with
+`TRIPPILOT_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`, a valid
+proposed-itinerary flow completed successfully. This was a local startup and
+configuration issue, not a deterministic planner failure. Earlier in-app
+automation difficulty with native date inputs did not reproduce as a product
+defect.
 
 ## 7. Determinism results
 
@@ -255,10 +268,13 @@ None found.
 - Provider location IDs are displayed instead of human-readable names.
 - The fixture intentionally supports only the synthetic Kingston/Toronto route,
   fixed dates, and CAD.
-- Live-browser success submission was limited by native-date automation; API and
-  frontend automated coverage supplied the acceptance evidence.
+- Local browser integration requires explicit `TRIPPILOT_CORS_ORIGINS`. The
+  initial acceptance attempt omitted this configuration and failed before the
+  POST reached the planner; the flow passed after the documented startup
+  correction.
 - The latency baseline excludes browser rendering and real HTTP transport.
-- Backend static type checking is not configured.
+- Backend static type checking was not part of the original acceptance run. It
+  is addressed by the post-acceptance baseline-quality-gates workstream.
 
 ## 14. Blocking defect fixed and regression coverage
 

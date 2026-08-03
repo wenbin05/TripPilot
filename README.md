@@ -87,6 +87,7 @@ cd backend
 pytest
 ruff format --check src tests
 ruff check src tests
+pyright --pythonpath ../.venv/bin/python
 uvicorn trippilot.api.app:app --reload
 ```
 
@@ -97,7 +98,7 @@ network access while running.
 
 ## Local frontend development
 
-Node.js 20.9 or newer and npm are required. Install dependencies and configure
+Node.js 20.19 or newer and npm are required. Install dependencies and configure
 the public backend URL:
 
 ```bash
