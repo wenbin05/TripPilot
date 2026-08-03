@@ -1,0 +1,96 @@
+name: Bounded work item
+description: Define a product, design, engineering, data, QA, or documentation task.
+title: "[Task] "
+body:
+  - type: input
+    id: owner
+    attributes:
+      label: Execution owner
+      description: Name the single person or agent responsible for completing and handing off this task.
+      placeholder: Owner name or task identifier
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workstream
+    attributes:
+      label: Workstream
+      options:
+        - Product management / data analysis
+        - UI / UX design
+        - Backend development
+        - Frontend development
+        - QA / review
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: State the concrete outcome and user or project value.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      value: |
+        In scope:
+        -
+
+        Out of scope:
+        -
+    validations:
+      required: true
+
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Expected artifacts
+      description: List files, analyses, mockups, tests, or decisions expected from the owner.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Provide observable, testable completion criteria.
+      placeholder: |
+        - [ ] Criterion one
+        - [ ] Criterion two
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: List the commands, reviews, screenshots, or measurements required.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and handoff
+      description: Identify prerequisites, overlapping files, downstream owners, or write "None."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Readiness
+      options:
+        - label: The task has one execution owner and no overlapping implementation ownership.
+          required: true
+        - label: The task stays within the MVP boundaries, or explicitly requires PRD and architecture approval before implementation.
+          required: true
+        - label: Hard constraints remain enforced by deterministic code where applicable.
+          required: true
+        - label: The task does not introduce secrets, personal data, bookings, payments, or unsupported external services.
+          required: true

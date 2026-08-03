@@ -1,5 +1,8 @@
 """Framework-independent values used by deterministic itinerary validation."""
 
+# pyright: reportUnnecessaryIsInstance=false
+# Runtime guards defend these dataclasses from invalid untyped callers.
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,5 +1,8 @@
 """FastAPI application entry point."""
 
+# pyright: reportUnusedFunction=false
+# FastAPI registers the local exception handlers through decorators.
+
 from __future__ import annotations
 
 import os

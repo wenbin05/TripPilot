@@ -1,5 +1,8 @@
 """Strict internal travel-provider records and fixture boundary schemas."""
 
+# pyright: reportIncompatibleVariableOverride=false
+# Frozen Pydantic discriminator subclasses intentionally narrow record_type.
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, time
