@@ -52,11 +52,17 @@ The initial suite should include:
 
 ### Future coordinator evaluation
 
-When the single coordinator agent is introduced, freeze model/version,
-instructions, fixture snapshot, and generation parameters for repeatable runs.
-Validate every output deterministically. Compare it with the deterministic
-baseline on the same cases and record invalid-output and repair rates. Never use
-LLM self-grading as the source of truth for hard constraints.
+The approved coordinator design is evaluated through the versioned
+`coordinator-eval-v1-draft` protocol in `docs/COORDINATOR_EXPERIMENT.md`; freeze
+the executable `coordinator-eval-v1` manifest only after deterministic candidate
+generation exists. Freeze an immutable model snapshot where available and
+always record the returned model,
+prompt/contract version, fixture snapshot, candidate set, and generation
+parameters. Hosted generations are assessed across repeated runs rather than
+claimed to be bitwise deterministic. Validate every selected canonical candidate
+deterministically, compare it with the baseline on the same cases, and record
+invalid-output, repair, fallback, token, cost, and latency rates. Never use LLM
+self-grading as the source of truth for hard constraints.
 
 ## 3. Metrics and gates
 
@@ -108,6 +114,10 @@ Each evaluation run records:
   disguised as markers.
 - Mock records containing instruction-like content or unsupported currencies.
 - Proposals that omit disclosures or present estimates as confirmed prices.
+- Unknown, stale, homoglyph, or cross-request coordinator candidate IDs.
+- Strict-output coercion, extra fields, oversized arrays/prose, refusals,
+  truncation, timeouts, provider errors, and missing model configuration.
+- Canary preference data appearing in logs, traces, errors, or metadata.
 
 ## 6. Manual review rubric
 

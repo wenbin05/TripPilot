@@ -113,3 +113,16 @@ def test_openapi_documents_stable_plan_envelope(client: TestClient) -> None:
     operation = response.json()["paths"]["/api/v1/itineraries/plan"]["post"]
     assert "200" in operation["responses"]
     assert "422" in operation["responses"]
+
+
+def test_openapi_requires_canonical_location_labels(client: TestClient) -> None:
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+
+    for schema_name in ("ScheduledItemResponse", "AccommodationStayResponse"):
+        schema = schemas[schema_name]
+        assert "location_label" in schema["required"]
+        assert schema["additionalProperties"] is False
+        assert schema["properties"]["location_label"]["anyOf"] == [
+            {"type": "string", "maxLength": 200, "minLength": 1},
+            {"type": "null"},
+        ]

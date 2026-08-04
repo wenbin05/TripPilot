@@ -53,6 +53,20 @@ describe("createPlan response boundary", () => {
     },
     {
       ...successResponse,
+      validation_report: {
+        is_valid: false,
+        violations: [],
+      },
+    },
+    {
+      ...successResponse,
+      validation_report: {
+        is_valid: true,
+        violations: [failureResponse.validation_report.violations[0]],
+      },
+    },
+    {
+      ...successResponse,
       proposed_itinerary: {
         ...successResponse.proposed_itinerary,
         scheduled_items: [
@@ -63,7 +77,74 @@ describe("createPlan response boundary", () => {
         ],
       },
     },
+    {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        scheduled_items: [
+          {
+            ...successResponse.proposed_itinerary.scheduled_items[0],
+            location_label: "   ",
+          },
+        ],
+      },
+    },
+    {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        scheduled_items: [
+          {
+            ...successResponse.proposed_itinerary.scheduled_items[0],
+            location_label: 42,
+          },
+        ],
+      },
+    },
+    {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        scheduled_items: [
+          {
+            ...successResponse.proposed_itinerary.scheduled_items[0],
+            location_label: null,
+          },
+        ],
+      },
+    },
+    {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        accommodation_stays: [
+          {
+            ...successResponse.proposed_itinerary.accommodation_stays[0],
+            location_label: false,
+          },
+        ],
+      },
+    },
+    {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        scheduled_items: [
+          {
+            ...successResponse.proposed_itinerary.scheduled_items[0],
+            location_label: undefined,
+          },
+        ],
+      },
+    },
     { ...failureResponse, validation_report: undefined },
+    {
+      ...failureResponse,
+      validation_report: {
+        ...failureResponse.validation_report,
+        is_valid: true,
+      },
+    },
     {
       ...failureResponse,
       validation_report: {
@@ -82,6 +163,24 @@ describe("createPlan response boundary", () => {
     await expect(createPlan(request)).rejects.toMatchObject({
       kind: "unexpected",
     });
+  });
+
+  it("accepts an explicitly absent location ID and label", async () => {
+    const response = {
+      ...successResponse,
+      proposed_itinerary: {
+        ...successResponse.proposed_itinerary,
+        scheduled_items: [
+          {
+            ...successResponse.proposed_itinerary.scheduled_items[0],
+            location_id: null,
+            location_label: null,
+          },
+        ],
+      },
+    };
+    respondWith(response);
+    await expect(createPlan(request)).resolves.toEqual(response);
   });
 
   it("rejects malformed 422 details as an unexpected response", async () => {

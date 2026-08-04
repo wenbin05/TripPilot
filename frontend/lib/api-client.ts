@@ -60,6 +60,12 @@ function isStringArray(value: unknown): value is string[] {
   );
 }
 
+function isPublicLabel(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.trim().length > 0 && value.length <= 200
+  );
+}
+
 function isEnumValue<T extends string>(
   value: unknown,
   values: readonly T[],
@@ -178,7 +184,9 @@ function isScheduledItem(value: unknown): boolean {
     typeof value.title === "string" &&
     ["activity", "meal", "transport"].includes(value.kind as string) &&
     isTimeWindow(value.window) &&
-    (value.location_id === null || typeof value.location_id === "string") &&
+    ((value.location_id === null && value.location_label === null) ||
+      (typeof value.location_id === "string" &&
+        isPublicLabel(value.location_label))) &&
     isMoney(value.estimated_cost) &&
     (value.source_record_id === null ||
       typeof value.source_record_id === "string") &&
@@ -196,7 +204,9 @@ function isAccommodationStay(value: unknown): boolean {
     isTimestamp(value.check_in) &&
     isTimestamp(value.check_out) &&
     Number.isInteger(value.number_of_nights) &&
-    (value.location_id === null || typeof value.location_id === "string") &&
+    ((value.location_id === null && value.location_label === null) ||
+      (typeof value.location_id === "string" &&
+        isPublicLabel(value.location_label))) &&
     isMoney(value.estimated_cost) &&
     (value.source_record_id === null ||
       typeof value.source_record_id === "string") &&
@@ -244,8 +254,12 @@ function isCostBreakdown(value: unknown): boolean {
 
 function isPlanResponse(value: unknown): value is PlanResponse {
   if (!isRecord(value) || !isResponseBase(value)) return false;
+  const validationReport = value.validation_report;
+  if (!isValidationReport(validationReport)) return false;
   if (value.status === "success") {
     return (
+      validationReport.is_valid === true &&
+      validationReport.violations.length === 0 &&
       typeof value.fixture_snapshot_version === "string" &&
       isProposedItinerary(value.proposed_itinerary) &&
       isCostBreakdown(value.cost_breakdown) &&
@@ -259,6 +273,7 @@ function isPlanResponse(value: unknown): value is PlanResponse {
   }
   return (
     value.status === "planning_failure" &&
+    validationReport.is_valid === false &&
     isEnumValue(value.failure_code, PLANNING_FAILURE_CODES) &&
     typeof value.explanation === "string" &&
     isStringArray(value.relevant_constraints)

@@ -68,9 +68,11 @@ background workers, or production deployment.
 ├── data/mock/
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── COORDINATOR_EXPERIMENT.md
 │   ├── DESIGN_SYSTEM.md
 │   ├── EVALUATION_PLAN.md
 │   ├── PRD.md
+│   ├── PRODUCT_UX_BENCHMARK.md
 │   └── SECURITY.md
 └── frontend/                 # Next.js App Router MVP client
 ```
@@ -153,7 +155,9 @@ rejects wildcard configuration.
 
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Single coordinator experiment contract](docs/COORDINATOR_EXPERIMENT.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
+- [Product and UX benchmark](docs/PRODUCT_UX_BENCHMARK.md)
 - [Security](docs/SECURITY.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Deterministic MVP acceptance report](docs/DETERMINISTIC_MVP_ACCEPTANCE.md)
@@ -167,3 +171,7 @@ offline mock provider, local FastAPI endpoints, a responsive one-page Next.js
 client, and the passing deterministic acceptance baseline documented in
 `docs/DETERMINISTIC_MVP_ACCEPTANCE.md`. No database, external provider, LLM,
 authentication, booking, or deployment configuration has been added.
+
+Milestone 7 defines the bounded product, UX, architecture, security, and
+evaluation contract for a future optional single-coordinator experiment. It is
+design-only: the repository still contains no hosted-model runtime or API key.

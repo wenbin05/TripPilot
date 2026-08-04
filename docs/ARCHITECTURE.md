@@ -173,17 +173,20 @@ planner identifier, assumptions, and no-booking disclosures. Provider-boundary
 exceptions are converted to a generic incomplete-data failure without exposing
 the provider exception message.
 
-Later, one coordinator agent may:
+Milestone 7 approves the design contract for one optional coordinator
+experiment. Deterministic code generates two to five validator-clean canonical
+candidates. The coordinator may interpret bounded soft-preference notes, select
+one candidate ID or abstain, and return controlled preference-interpretation
+tags. Factual selection summaries are derived by deterministic code. The model
+does not assemble an itinerary or emit authoritative prose, timestamps, money,
+provider facts, or disclosures.
 
-- interpret interests and trade-offs;
-- choose among mock provider candidates;
-- assemble a structured proposal; and
-- explain decisions and validator feedback.
-
-The agent receives bounded, schema-validated context and must emit a strict
-structured proposal. It cannot waive hard constraints, calculate authoritative
-totals, access tools directly, spawn runtime agents, or claim booking success.
-The service validates its output and controls any bounded retry.
+The service binds candidate IDs to the normalized request and fixture snapshot,
+strictly parses the decision, resolves the canonical candidate, and runs the
+complete validator again. The coordinator cannot waive constraints, calculate
+totals, access providers or unrestricted tools, spawn runtime agents, or claim
+booking success. The service owns a single allowlisted retry and deterministic
+fallback. `docs/COORDINATOR_EXPERIMENT.md` is the detailed experiment contract.
 
 ## 10. API delivery layer
 
@@ -223,12 +226,26 @@ contract tests, the corresponding TypeScript types and runtime guards, and
 positive and negative frontend guard tests in the same pull request.
 
 Unknown response fields remain a known difference: backend response schemas
-forbid them, while the current frontend guards accept them. Before the
-coordinator milestone changes any public response shape, make an explicit
-decision between continuing handwritten runtime validation and adopting a
-generated contract plus runtime-validation strategy. Generated compile-time
-types alone are insufficient because untrusted HTTP responses still require
-runtime checks.
+forbid them, while the current frontend guards accept them. Generated
+compile-time types alone are insufficient because untrusted HTTP responses still
+require runtime checks.
+
+For the first coordinator experiment, handwritten frontend runtime guards are
+retained. Deterministic planning behavior and its endpoint path remain
+unchanged; a future coordinator implementation uses a separate experimental
+endpoint. Its implementation must update backend schemas and contract tests,
+frontend types and runtime guards,
+and positive and negative guard tests atomically. Contract generation remains a
+later decision rather than a dependency of the experiment.
+
+The separately approved benchmark-driven UI refinement requires a shared,
+additive, server-authored human-readable
+location label alongside the canonical `location_id` for scheduled items and
+accommodation. This is an additive public-contract change and must follow the
+same atomic backend schema/OpenAPI/frontend guard/test workflow. Labels come
+from canonical provider records, never model output. The UI keeps the label in
+the primary scan path and moves raw IDs into expandable provenance details with
+an explicit item-to-source mapping.
 
 ## 11. Persistence and deployment
 

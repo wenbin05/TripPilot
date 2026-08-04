@@ -89,6 +89,7 @@ export interface ScheduledItem {
   kind: ItemKind;
   window: { start: string; end: string };
   location_id: string | null;
+  location_label: string | null;
   estimated_cost: Money;
   source_record_id: string | null;
   pricing: Pricing;
@@ -102,6 +103,7 @@ export interface AccommodationStay {
   check_out: string;
   number_of_nights: number;
   location_id: string | null;
+  location_label: string | null;
   estimated_cost: Money;
   source_record_id: string | null;
   pricing: Pricing;

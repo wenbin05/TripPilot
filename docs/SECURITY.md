@@ -53,7 +53,27 @@ coordinator:
 - cap retries, tokens, and time synchronously;
 - separate system instructions from untrusted user/provider text;
 - do not expose hidden prompts or chain-of-thought; and
-- log safe operational metadata rather than raw prompts by default.
+- log only the safe operational metadata defined by the experiment contract.
+
+For the first coordinator experiment, the model may only select or abstain among
+two to five deterministic, validator-clean candidate IDs bound to the request
+and fixture snapshot. It emits controlled preference-interpretation tags, not
+an itinerary, factual selection claims, money, timestamps, provider facts,
+arbitrary prose, or disclosures. Selection facts are derived deterministically.
+The service resolves the canonical candidate and revalidates it. Malformed
+output, refusal, timeout, missing configuration, unknown IDs, or validation
+failure always use the deterministic fallback.
+
+Do not log or trace raw preference notes, prompts, model responses, provider
+payloads, candidate bodies, or validator context. If an SDK enables tracing or
+sensitive trace content by default, disable it explicitly and prove the control
+with a canary-leak test. Keep any model key server-side and never silently swap
+models or providers when configuration is missing.
+
+The only experiment network egress is the server's configured hosted-model
+adapter to an allowlisted provider destination. The model receives no tools and
+has no direct egress. Candidate summaries contain strict derived facts and
+stable IDs only, never raw provider titles, descriptions, or source labels.
 
 Prompt injection is possible even in external travel descriptions. Provider data
 must never grant authority or override system and domain rules.

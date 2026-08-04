@@ -7,7 +7,7 @@ from typing import Annotated, cast
 from fastapi import APIRouter, Depends
 
 from trippilot.domain import Money, Pricing, TripRequest, ValidationReport
-from trippilot.providers import TravelDataProvider
+from trippilot.providers import LocationRecord, TravelDataProvider
 from trippilot.services import PlanningFailure, PlanningFailureCode, PlanningSuccess
 
 from .dependencies import Planner, get_planner, get_provider
@@ -99,7 +99,22 @@ def _disclosures(values: tuple[str, ...]) -> tuple[str, ...]:
     return values
 
 
-def _success(request: TripRequest, result: PlanningSuccess) -> PlanningSuccessResponse:
+def _location_label(
+    provider: TravelDataProvider, location_id: str | None
+) -> str | None:
+    if location_id is None:
+        return None
+    record = provider.get_record(location_id)
+    if not isinstance(record, LocationRecord):
+        raise RuntimeError("itinerary referenced a non-canonical location")
+    return record.name
+
+
+def _success(
+    request: TripRequest,
+    result: PlanningSuccess,
+    provider: TravelDataProvider,
+) -> PlanningSuccessResponse:
     if not result.validation_report.is_valid:
         raise RuntimeError("planner returned an invalid result as successful")
     itinerary = result.itinerary
@@ -116,6 +131,7 @@ def _success(request: TripRequest, result: PlanningSuccess) -> PlanningSuccessRe
                         start=item.window.start, end=item.window.end
                     ),
                     location_id=item.location_id,
+                    location_label=_location_label(provider, item.location_id),
                     estimated_cost=_money(item.estimated_cost),
                     source_record_id=item.source_record_id,
                     pricing=_pricing(item.pricing),
@@ -131,6 +147,7 @@ def _success(request: TripRequest, result: PlanningSuccess) -> PlanningSuccessRe
                     check_out=stay.check_out,
                     number_of_nights=stay.number_of_nights,
                     location_id=stay.location_id,
+                    location_label=_location_label(provider, stay.location_id),
                     estimated_cost=_money(stay.estimated_cost),
                     source_record_id=stay.source_record_id,
                     pricing=_pricing(stay.pricing),
@@ -228,5 +245,5 @@ def plan_itinerary(
     request = body.to_domain(destination_timezone)
     result = planner(request, provider)
     if isinstance(result, PlanningSuccess):
-        return _success(request, result)
+        return _success(request, result, provider)
     return _failure(request, result)

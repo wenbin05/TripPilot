@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from trippilot.api.app import app, create_app
 from trippilot.api.dependencies import get_planner, get_provider
 from trippilot.domain import Severity, ValidationReport, Violation, ViolationCode
+from trippilot.providers import LocationRecord
 from trippilot.services import PlanningSuccess, plan_trip
 
 
@@ -74,6 +75,36 @@ def test_successful_api_itineraries_pass_the_complete_validator(
     assert payload["fixture_snapshot_version"] == "2026-08-01.v1"
     assert payload["planner_id"]
     assert payload["planning_rationale"]
+
+
+def test_success_uses_canonical_provider_location_labels(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/plan", json=request_body(end_date="2026-08-11")
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    provider = get_provider()
+    located_items = (
+        *payload["proposed_itinerary"]["scheduled_items"],
+        *payload["proposed_itinerary"]["accommodation_stays"],
+    )
+    assert located_items
+    for item in located_items:
+        location = provider.get_record(item["location_id"])
+        assert isinstance(location, LocationRecord)
+        assert item["location_label"] == location.name
+
+    assert {
+        item["location_label"]
+        for item in payload["proposed_itinerary"]["scheduled_items"]
+    } >= {"Toronto Central Transit Hall"}
+    assert payload["proposed_itinerary"]["accommodation_stays"][0][
+        "location_label"
+    ] in {"Campus Corner Lodge", "Harbour Study Hostel"}
 
 
 def test_exact_budget_remains_a_valid_success(client: TestClient) -> None:

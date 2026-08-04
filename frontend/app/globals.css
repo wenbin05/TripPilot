@@ -39,12 +39,14 @@ body {
 }
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 button,
 input,
 select,
+textarea,
 summary,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -67,8 +69,8 @@ p {
   margin-top: 0;
 }
 h1 {
-  font-size: clamp(2.1rem, 7vw, 4.4rem);
-  line-height: 1.02;
+  font-size: clamp(2.1rem, 5vw, 3.8rem);
+  line-height: 1.04;
   letter-spacing: -0.045em;
 }
 h2 {
@@ -128,15 +130,12 @@ time,
 }
 
 .estimateBanner {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 12px 18px;
+  padding: 9px 16px;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   border: 1px solid #d3a652;
   border-radius: 10px;
   color: #5e4008;
@@ -145,7 +144,7 @@ time,
   backdrop-filter: blur(8px);
 }
 .estimateBanner p {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   font-size: 0.86rem;
 }
 
@@ -156,11 +155,11 @@ time,
 }
 .hero {
   max-width: 760px;
-  padding: 72px 0 44px;
+  padding: 30px 0 24px;
 }
 .hero h1 {
   max-width: 650px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 .hero > p:last-child {
   color: var(--muted);
@@ -175,9 +174,14 @@ time,
   text-transform: uppercase;
 }
 
-form {
+.plannerForm,
+.plannerFields {
   display: grid;
-  gap: 22px;
+  gap: 16px;
+}
+.plannerFormLayout {
+  display: grid;
+  gap: 16px;
 }
 .formSection,
 .reviewSection,
@@ -186,7 +190,7 @@ form {
 .costCard,
 .versionCard,
 .technicalDetails {
-  padding: clamp(20px, 4vw, 34px);
+  padding: clamp(18px, 3vw, 24px);
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface);
@@ -196,7 +200,7 @@ form {
   display: flex;
   gap: 14px;
   align-items: flex-start;
-  margin-bottom: 26px;
+  margin-bottom: 17px;
 }
 .sectionHeading > span {
   flex: 0 0 34px;
@@ -217,7 +221,7 @@ form {
 }
 .fieldGrid {
   display: grid;
-  gap: 22px;
+  gap: 18px;
 }
 .field {
   min-width: 0;
@@ -230,7 +234,8 @@ form {
   font-weight: 750;
 }
 .field input:not([type="radio"]):not([type="checkbox"]),
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   min-height: 48px;
   padding: 10px 12px;
@@ -240,7 +245,8 @@ form {
   background: white;
 }
 .field input[aria-invalid="true"],
-.field select[aria-invalid="true"] {
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
   border: 2px solid var(--danger);
 }
 .hint {
@@ -266,12 +272,15 @@ form {
   border: 0;
 }
 .radioOption {
-  min-height: 54px;
-  padding: 8px 0;
+  min-height: 48px;
+  padding: 9px 10px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
   cursor: pointer;
+  border: 1px solid #9eaeaa;
+  border-radius: 10px;
+  background: white;
 }
 .radioOption input {
   width: 20px;
@@ -284,6 +293,15 @@ form {
 }
 .radioOption small {
   color: var(--muted);
+}
+.radioOption:has(input:checked) {
+  border: 2px solid var(--brand-dark);
+  background: #e3f1ec;
+}
+.paceOptions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
 }
 .interestGrid {
   display: grid;
@@ -338,7 +356,7 @@ form {
 .primaryButton {
   width: 100%;
   min-height: 52px;
-  margin-top: 28px;
+  margin-top: 20px;
   padding: 12px 20px;
   border: 0;
   border-radius: 10px;
@@ -409,18 +427,71 @@ form {
 }
 
 .results {
-  padding: 36px 0 70px;
+  padding: 28px 0 70px;
   display: grid;
   gap: 22px;
 }
 .resultHeader {
-  padding: 36px 0 10px;
+  padding: 18px 0 2px;
 }
 .resultHeader h1 {
   margin-bottom: 14px;
 }
 .resultHeader > p:last-child {
   color: var(--muted);
+}
+.resultContext {
+  margin-bottom: 0;
+}
+.resultAtGlance {
+  padding: 20px;
+  border: 1px solid #75ad90;
+  border-radius: 12px;
+  background: var(--success-soft);
+}
+.resultAtGlance h2 {
+  margin-bottom: 14px;
+  font-size: 1.15rem;
+}
+.resultAtGlance dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.resultAtGlance dd {
+  margin-top: 2px;
+  color: #0e5534;
+  font-weight: 800;
+}
+.resultAtGlance > p {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #a8cdb8;
+  color: #0e5534;
+}
+.resultDisclosure,
+.warningList {
+  padding: 14px 18px;
+  display: flex;
+  gap: 12px;
+  border: 1px solid #d3a652;
+  border-radius: 10px;
+  color: #5e4008;
+  background: var(--warning-soft);
+}
+.resultDisclosure p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+}
+.warningList {
+  display: block;
+}
+.warningList h2 {
+  margin-bottom: 8px;
+  font-size: 1.08rem;
+}
+.warningList ul {
+  margin: 0;
 }
 .failureHeader h1 {
   color: #79190f;
@@ -510,7 +581,7 @@ form {
   border-bottom: 0;
 }
 .timelineItem h4 {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 1.06rem;
 }
 .timeRange {
@@ -521,15 +592,32 @@ form {
   font-size: 0.84rem;
   font-weight: 800;
 }
-.itemMeta {
+.itemMeta,
+.itemSummary {
   display: grid;
   gap: 8px;
 }
-.itemMeta > div {
+.itemMeta > div,
+.itemSummary > div {
   min-width: 0;
 }
-.itemMeta dd {
+.itemMeta dd,
+.itemSummary dd {
   overflow-wrap: anywhere;
+}
+.itemKind {
+  margin: 0 0 5px;
+  color: var(--brand-dark);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.itemKind-transport {
+  color: #22577a;
+}
+.itemKind-meal {
+  color: #7a5100;
 }
 .accommodationCard {
   padding: 22px;
@@ -586,6 +674,26 @@ form {
 .technicalDetails dl {
   margin-top: 12px;
 }
+.technicalDetails > ul {
+  margin: 14px 0 0;
+}
+.provenanceList {
+  padding: 0;
+  list-style: none;
+}
+.provenanceList > li {
+  padding: 14px 0;
+  border-bottom: 1px solid #e1e7e4;
+}
+.provenanceList > li:last-child {
+  border-bottom: 0;
+}
+.provenanceList dl {
+  margin-top: 8px;
+}
+.constraintDetails .summaryGrid {
+  margin-top: 14px;
+}
 
 footer {
   padding: 30px 20px 50px;
@@ -595,7 +703,7 @@ footer {
   font-size: 0.82rem;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 769px) {
   .plannerShell,
   .results {
     width: min(100% - 48px, 1080px);
@@ -603,8 +711,11 @@ footer {
   .fieldGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .fieldNarrow {
-    max-width: 280px;
+  .paceField {
+    grid-column: 1 / -1;
+  }
+  .paceOptions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .interestGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -623,19 +734,34 @@ footer {
   .timelineItem {
     grid-template-columns: 190px minmax(0, 1fr);
   }
-  .itemMeta {
+  .itemMeta,
+  .itemSummary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 900px) {
+  .plannerFormLayout {
+    grid-template-columns: minmax(0, 1fr) 310px;
+    align-items: start;
+  }
+  .reviewSection {
+    position: sticky;
+    top: 20px;
+  }
   .resultLayout {
     grid-template-columns: minmax(0, 1fr) 320px;
     align-items: start;
   }
   .summaryRail {
+    grid-column: 2;
+    grid-row: 1;
     position: sticky;
-    top: 112px;
+    top: 20px;
+  }
+  .itineraryColumn {
+    grid-column: 1;
+    grid-row: 1;
   }
 }
 
@@ -649,7 +775,10 @@ footer {
     border-right: 0;
   }
   .hero {
-    padding-top: 54px;
+    padding-top: 28px;
+  }
+  .resultAtGlance dl {
+    grid-template-columns: 1fr;
   }
 }
 

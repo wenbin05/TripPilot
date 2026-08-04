@@ -103,6 +103,7 @@ class ScheduledItemResponse(ApiSchema):
     kind: ItemKind
     window: TimeWindowResponse
     location_id: str | None
+    location_label: PublicLabel | None
     estimated_cost: MoneyResponse
     source_record_id: str | None
     pricing: PricingResponse
@@ -116,6 +117,7 @@ class AccommodationStayResponse(ApiSchema):
     check_out: datetime
     number_of_nights: int
     location_id: str | None
+    location_label: PublicLabel | None
     estimated_cost: MoneyResponse
     source_record_id: str | None
     pricing: PricingResponse
