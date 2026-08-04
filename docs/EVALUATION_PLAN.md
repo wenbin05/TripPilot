@@ -64,6 +64,18 @@ deterministically, compare it with the baseline on the same cases, and record
 invalid-output, repair, fallback, token, cost, and latency rates. Never use LLM
 self-grading as the source of truth for hard constraints.
 
+### Candidate-diversity prerequisite
+
+The internal deterministic enumerator is gated by the eight frozen normalized
+requests in `backend/tests/unit/test_candidate_generation.py`. Each request must
+produce two to five pairwise materially different candidates under the exact
+rule in `docs/CANDIDATE_DIVERSITY.md`. Candidate zero must equal the existing
+standard planner selection. Every candidate is independently revalidated,
+budget-clean, canonically referenced, arithmetically reconciled, and stable
+across repeated runs. Fewer than two candidates for any frozen prerequisite case
+blocks the later coordinator boundary; candidates are never duplicated to meet
+the minimum.
+
 ## 3. Metrics and gates
 
 ### Required release gates

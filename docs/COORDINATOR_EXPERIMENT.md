@@ -352,7 +352,9 @@ justify a cluttered interface or reduced comprehension.
 
 ## 10. Implementation sequence after approval
 
-1. Add deterministic candidate enumeration and prove the diversity prerequisite.
+1. **Complete:** add deterministic candidate enumeration and prove the diversity
+   prerequisite. The evidence and frozen materiality rule are recorded in
+   `docs/CANDIDATE_DIVERSITY.md`.
 2. Add strict internal coordinator schemas and adapter protocol without an SDK.
 3. Add the isolated experimental API contract and frontend opt-in.
 4. Add one hosted-model adapter, server-side configuration, safe metadata, and

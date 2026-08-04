@@ -195,9 +195,13 @@ For a fixed evaluation set:
 
 ## 13. Later roadmap
 
-The deterministic core, FastAPI endpoint, and Next.js client are complete. The
-next bounded experiment is one optional coordinator that ranks two to five
-deterministically generated, validator-clean candidates using soft preferences.
+The deterministic core, FastAPI endpoint, and Next.js client are complete.
+Internal deterministic candidate enumeration now returns one to five canonical,
+validator-clean proposals without changing the standard endpoint, and eight
+frozen structured requests meet the two-candidate diversity prerequisite. The
+next bounded experiment phase defines strict internal coordinator schemas and
+an adapter protocol before model integration. The eventual optional coordinator
+ranks two to five candidates using soft preferences.
 It does not generate authoritative itinerary facts and is retained only if the
 gates in `docs/COORDINATOR_EXPERIMENT.md` pass. Persistence, selected live
 providers, containerization, and deployment remain later changes requiring

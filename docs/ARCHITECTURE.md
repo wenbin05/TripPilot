@@ -67,6 +67,10 @@ Core modelling decisions:
   category cost breakdown, all-in total, assumptions, and disclosures.
 - `Violation`: stable code, message, severity, and affected field/item IDs.
 - `ValidationReport`: `is_valid` plus an ordered collection of violations.
+- `CanonicalCandidate`: one validator-clean itinerary plus the exact provider
+  snapshot required for independent revalidation.
+- `CandidateSet`: one to five ordered canonical candidates bound to one fixture
+  snapshot and deterministic generator version.
 
 Use strict Pydantic models that reject unknown fields at API, provider, fixture,
 and future LLM boundaries. Use frozen domain dataclasses where framework
@@ -187,6 +191,16 @@ complete validator again. The coordinator cannot waive constraints, calculate
 totals, access providers or unrestricted tools, spawn runtime agents, or claim
 booking success. The service owns a single allowlisted retry and deterministic
 fallback. `docs/COORDINATOR_EXPERIMENT.md` is the detailed experiment contract.
+
+Milestone 8 adds an internal service-only candidate enumerator. It walks the
+same stable, bounded transport/accommodation, pace-profile, and agenda-ranking
+order as the standard planner; candidate zero therefore remains the existing
+`/plan` selection. Alternatives are admitted only when the primary-activity
+sequence differs and a deterministic cost, local-transfer, activity-count, or
+interest-count trade-off crosses the frozen materiality rule. Every retained
+candidate is budget-checked and revalidated against its own canonical provider
+snapshot. The generator returns one candidate when only one qualifies and never
+pads the set. No public API or frontend contract changes in this milestone.
 
 ## 10. API delivery layer
 

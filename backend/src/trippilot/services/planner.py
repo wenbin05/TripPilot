@@ -44,6 +44,9 @@ from trippilot.providers import (
 )
 
 from .models import (
+    CandidateEnumerationResult,
+    CandidateSet,
+    CanonicalCandidate,
     PlanningFailure,
     PlanningFailureCode,
     PlanningResult,
@@ -51,6 +54,8 @@ from .models import (
 )
 
 PLANNER_ID = "deterministic-greedy-bounded-v1"
+CANDIDATE_GENERATOR_ID = "deterministic-candidate-enumerator-v1"
+MAX_CANONICAL_CANDIDATES = 5
 MAX_CANDIDATE_COMBINATIONS = 32
 MAX_AGENDA_VARIANTS_PER_DAY = 5_000
 
@@ -118,6 +123,51 @@ class _Candidate:
     itinerary: Itinerary
     snapshot: ProviderSnapshot
     matched_interests: tuple[Interest, ...]
+    interest_counts: tuple[int, ...]
+
+
+def _activity_signature(candidate: _Candidate) -> tuple[str, ...]:
+    return tuple(
+        item.source_record_id or ""
+        for item in candidate.itinerary.scheduled_items
+        if item.kind is ItemKind.ACTIVITY
+    )
+
+
+def _tradeoff_signature(
+    candidate: _Candidate,
+) -> tuple[int, int, int, tuple[int, ...]]:
+    return (
+        candidate.itinerary.total_estimated_cost.amount_minor,
+        sum(
+            requirement.minimum_minutes
+            for requirement in candidate.snapshot.transfer_requirements
+        ),
+        len(_activity_signature(candidate)),
+        candidate.interest_counts,
+    )
+
+
+def _is_materially_different(
+    candidate: _Candidate,
+    existing: _Candidate,
+    *,
+    budget_minor: int,
+) -> bool:
+    candidate_activities = _activity_signature(candidate)
+    existing_activities = _activity_signature(existing)
+    if candidate_activities == existing_activities:
+        return False
+
+    candidate_tradeoffs = _tradeoff_signature(candidate)
+    existing_tradeoffs = _tradeoff_signature(existing)
+    cost_threshold = min(500, (budget_minor * 5 + 99) // 100)
+    return (
+        abs(candidate_tradeoffs[0] - existing_tradeoffs[0]) >= cost_threshold
+        or abs(candidate_tradeoffs[1] - existing_tradeoffs[1]) >= 15
+        or candidate_tradeoffs[2] != existing_tradeoffs[2]
+        or candidate_tradeoffs[3] != existing_tradeoffs[3]
+    )
 
 
 def _failure(
@@ -435,7 +485,9 @@ def _fees_for(
 ) -> tuple[ExplicitFee, ...]:
     fees: list[ExplicitFee] = []
     for sequence, record_id in enumerate(selected_record_ids, start=1):
-        for fee in provider.list_fees(record_id):
+        for fee in sorted(
+            provider.list_fees(record_id), key=lambda record: record.record_id
+        ):
             amount = _normalized_amount(fee.price, travellers)
             fees.append(
                 ExplicitFee(
@@ -468,7 +520,15 @@ def _provider_snapshot(
             item.source_record_id is None
         ):
             continue
-        for window in provider.get_operating_windows(item.source_record_id):
+        for window in sorted(
+            provider.get_operating_windows(item.source_record_id),
+            key=lambda record: (
+                record.local_start_time,
+                record.local_end_time,
+                record.weekdays,
+                record.record_id,
+            ),
+        ):
             local_day = item.window.start.astimezone(zone).date()
             if local_day.weekday() in window.weekdays:
                 operating.append(
@@ -529,6 +589,7 @@ def _candidate(
     if len(daily_activity_targets) != trip_days:
         return None
     activity_interests: set[Interest] = set()
+    activity_interest_counts = {interest: 0 for interest in Interest}
     for offset in range(trip_days):
         day = request.start_date + timedelta(days=offset)
         first_day = offset == 0
@@ -574,6 +635,8 @@ def _candidate(
             record = provider.get_record(record_id)
             if isinstance(record, ActivityRecord):
                 activity_interests.update(record.interests)
+                for interest in record.interests:
+                    activity_interest_counts[interest] += 1
     scheduled.append(
         _transport_item(outbound, TransportRole.OUTBOUND, request.travellers)
     )
@@ -654,6 +717,9 @@ def _candidate(
         matched_interests=tuple(
             interest for interest in request.interests if interest in activity_interests
         ),
+        interest_counts=tuple(
+            activity_interest_counts[interest] for interest in Interest
+        ),
     )
 
 
@@ -672,8 +738,13 @@ def _daily_target_profiles(request: TripRequest) -> tuple[tuple[int, ...], ...]:
     return tuple(dict.fromkeys(profiles))
 
 
-def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningResult:
-    """Return a validator-clean proposal or an expected structured failure."""
+def _enumerate_trip_candidates(
+    request: TripRequest,
+    provider: TravelDataProvider,
+    *,
+    max_candidates: int,
+) -> CandidateEnumerationResult:
+    """Search the current bounded traversal for ordered canonical proposals."""
 
     if not _request_is_valid(request):
         return _failure(
@@ -840,6 +911,7 @@ def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningRes
         last_report: ValidationReport | None = None
         saw_activity_candidate = False
         saw_within_budget = False
+        accepted: list[tuple[_Candidate, ValidationReport]] = []
         for combination in combinations[:MAX_CANDIDATE_COMBINATIONS]:
             _, _, _, _, _, inbound_record, outbound_record, stay = combination
             for targets in _daily_target_profiles(request):
@@ -874,15 +946,20 @@ def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningRes
                         continue
                     saw_within_budget = True
                     if report.is_valid:
-                        return PlanningSuccess(
-                            itinerary=candidate.itinerary,
-                            validation_report=report,
-                            fixture_snapshot_version=snapshot_version,
-                            planner_id=PLANNER_ID,
-                            matched_interests=candidate.matched_interests,
-                            assumptions=ASSUMPTIONS,
-                            disclosures=DISCLOSURES,
-                        )
+                        if accepted and not all(
+                            _is_materially_different(
+                                candidate,
+                                existing_candidate,
+                                budget_minor=request.budget.amount_minor,
+                            )
+                            for existing_candidate, _ in accepted
+                        ):
+                            continue
+                        accepted.append((candidate, report))
+                        if len(accepted) == max_candidates:
+                            return _candidate_set(accepted, snapshot_version)
+        if accepted:
+            return _candidate_set(accepted, snapshot_version)
         if saw_activity_candidate and not saw_within_budget:
             return _failure(
                 PlanningFailureCode.INSUFFICIENT_BUDGET,
@@ -915,3 +992,64 @@ def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningRes
             ("strict provider contract", "complete referenced records"),
             locals().get("snapshot_version"),
         )
+
+
+def _candidate_set(
+    candidates: list[tuple[_Candidate, ValidationReport]], snapshot_version: str
+) -> CandidateSet:
+    return CandidateSet(
+        candidates=tuple(
+            CanonicalCandidate(
+                itinerary=candidate.itinerary,
+                provider_snapshot=candidate.snapshot,
+                validation_report=report,
+                matched_interests=candidate.matched_interests,
+            )
+            for candidate, report in candidates
+        ),
+        fixture_snapshot_version=snapshot_version,
+        generator_id=CANDIDATE_GENERATOR_ID,
+        assumptions=ASSUMPTIONS,
+        disclosures=DISCLOSURES,
+    )
+
+
+def _validated_candidate_limit(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 2 <= value <= 5:
+        raise ValueError("candidate limit must be an integer between two and five")
+    return value
+
+
+def enumerate_trip_candidates(
+    request: TripRequest,
+    provider: TravelDataProvider,
+    *,
+    limit: int = MAX_CANONICAL_CANDIDATES,
+) -> CandidateEnumerationResult:
+    """Return one to five distinct canonical candidates, or a planning failure.
+
+    Fewer than two candidates is a valid result and tells the future coordinator
+    to skip model selection rather than pad the set with cosmetic duplicates.
+    """
+
+    return _enumerate_trip_candidates(
+        request, provider, max_candidates=_validated_candidate_limit(limit)
+    )
+
+
+def plan_trip(request: TripRequest, provider: TravelDataProvider) -> PlanningResult:
+    """Return the existing first validator-clean proposal or structured failure."""
+
+    result = _enumerate_trip_candidates(request, provider, max_candidates=1)
+    if isinstance(result, PlanningFailure):
+        return result
+    candidate = result.candidates[0]
+    return PlanningSuccess(
+        itinerary=candidate.itinerary,
+        validation_report=candidate.validation_report,
+        fixture_snapshot_version=result.fixture_snapshot_version,
+        planner_id=PLANNER_ID,
+        matched_interests=candidate.matched_interests,
+        assumptions=result.assumptions,
+        disclosures=result.disclosures,
+    )

@@ -5,10 +5,11 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP through Milestone 6: the deterministic domain core, validated mock
+MVP through Milestone 8: the deterministic domain core, validated mock
 travel-data provider, bounded deterministic planner, local FastAPI delivery
 layer, responsive Next.js planning interface, and a recorded passing
-deterministic acceptance baseline. It intentionally contains no live provider,
+deterministic acceptance baseline, plus internal validator-clean candidate
+enumeration. It intentionally contains no live provider, hosted-model runtime,
 persistence, or booking functionality.
 
 ## First MVP
@@ -68,6 +69,7 @@ background workers, or production deployment.
 ├── data/mock/
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── CANDIDATE_DIVERSITY.md
 │   ├── COORDINATOR_EXPERIMENT.md
 │   ├── DESIGN_SYSTEM.md
 │   ├── EVALUATION_PLAN.md
@@ -155,6 +157,7 @@ rejects wildcard configuration.
 
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Candidate diversity evidence](docs/CANDIDATE_DIVERSITY.md)
 - [Single coordinator experiment contract](docs/COORDINATOR_EXPERIMENT.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Product and UX benchmark](docs/PRODUCT_UX_BENCHMARK.md)
@@ -173,5 +176,8 @@ client, and the passing deterministic acceptance baseline documented in
 authentication, booking, or deployment configuration has been added.
 
 Milestone 7 defines the bounded product, UX, architecture, security, and
-evaluation contract for a future optional single-coordinator experiment. It is
-design-only: the repository still contains no hosted-model runtime or API key.
+evaluation contract for a future optional single-coordinator experiment.
+Milestone 8 implements only its deterministic candidate-enumeration prerequisite
+and proves eight frozen requests have pairwise material alternatives. The
+repository still contains no coordinator endpoint, hosted-model runtime, or API
+key.
