@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import type {
   AccommodationStay,
+  CoordinatorExperiment,
   CostBreakdown as CostBreakdownType,
   NormalizedRequest,
   PlanningFailure as PlanningFailureType,
@@ -16,13 +20,30 @@ import {
   humanize,
 } from "@/lib/format";
 
+function tripDayCount(request: NormalizedRequest): number {
+  const [startYear, startMonth, startDay] = request.start_date
+    .split("-")
+    .map(Number);
+  const [endYear, endMonth, endDay] = request.end_date.split("-").map(Number);
+  return (
+    Math.round(
+      (Date.UTC(endYear, endMonth - 1, endDay) -
+        Date.UTC(startYear, startMonth - 1, startDay)) /
+        86_400_000,
+    ) + 1
+  );
+}
+
+function useResultHeadingFocus() {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => headingRef.current?.focus(), []);
+  return headingRef;
+}
+
 function ConstraintSummary({ request }: { request: NormalizedRequest }) {
   return (
-    <section
-      className="resultSection"
-      aria-labelledby="result-constraints-title"
-    >
-      <h2 id="result-constraints-title">Your constraints</h2>
+    <details className="technicalDetails constraintDetails">
+      <summary>Trip details and preferences</summary>
       <dl className="summaryGrid">
         <div>
           <dt>Route</dt>
@@ -60,7 +81,7 @@ function ConstraintSummary({ request }: { request: NormalizedRequest }) {
           <dd>{request.interests.map(humanize).join(", ")}</dd>
         </div>
       </dl>
-    </section>
+    </details>
   );
 }
 
@@ -79,7 +100,10 @@ function ValidationNotice({ report }: { report: ValidationReport }) {
           : "Could not create a valid plan"}
       </h2>
       {report.is_valid ? (
-        <p>The deterministic validator found no hard-constraint violations.</p>
+        <p>
+          Hard checks passed. Prices and availability remain estimates, and
+          nothing has been booked.
+        </p>
       ) : report.violations.length ? (
         <ul>
           {report.violations.map((violation) => (
@@ -96,6 +120,84 @@ function ValidationNotice({ report }: { report: ValidationReport }) {
   );
 }
 
+function PlanningApproach({
+  experiment,
+}: {
+  experiment?: CoordinatorExperiment;
+}) {
+  const label = !experiment
+    ? "Standard"
+    : experiment.approach === "coordinator_assisted"
+      ? "Coordinator-assisted experiment"
+      : "Deterministic fallback";
+  const description = !experiment
+    ? "Selected by TripPilot’s deterministic planner."
+    : experiment.approach === "coordinator_assisted"
+      ? "A coordinator ranked canonical, validator-clean proposals."
+      : "TripPilot selected a validator-clean proposal deterministically.";
+  return (
+    <aside className="approachNotice" aria-label="Planning approach">
+      <strong>Planning approach: {label}</strong>
+      <p>{description}</p>
+    </aside>
+  );
+}
+
+function ResultAtAGlance({ result }: { result: PlanningSuccess }) {
+  const remaining =
+    result.request.budget.amount_minor -
+    result.cost_breakdown.total_estimated_cost.amount_minor;
+  const days = tripDayCount(result.request);
+  return (
+    <section className="resultAtGlance" aria-labelledby="glance-title">
+      <h2 id="glance-title">Plan at a glance</h2>
+      <dl>
+        <div>
+          <dt>Constraints</dt>
+          <dd>
+            <span aria-hidden="true">✓</span> Passed
+          </dd>
+        </div>
+        <div>
+          <dt>Trip length</dt>
+          <dd>
+            {days} {days === 1 ? "day" : "days"}
+          </dd>
+        </div>
+        <div>
+          <dt>Estimated total</dt>
+          <dd>{formatMoney(result.cost_breakdown.total_estimated_cost)}</dd>
+        </div>
+        <div>
+          <dt>Remaining budget</dt>
+          <dd>
+            {formatMoney({
+              amount_minor: remaining,
+              currency: result.request.budget.currency,
+            })}
+          </dd>
+        </div>
+      </dl>
+      <p>
+        <strong>Constraints validated.</strong> Hard checks passed; prices and
+        availability remain estimates, and nothing has been booked.
+      </p>
+    </section>
+  );
+}
+
+function ResultDisclosure({ disclosures }: { disclosures: string[] }) {
+  return (
+    <aside className="resultDisclosure" aria-label="Proposal disclosure">
+      <span aria-hidden="true">ⓘ</span>
+      <div>
+        <strong>Mock data · Proposed trip only</strong>
+        <p>{disclosures.join(" ")}</p>
+      </div>
+    </aside>
+  );
+}
+
 function ScheduledItemCard({
   item,
   timeZone,
@@ -103,6 +205,8 @@ function ScheduledItemCard({
   item: ScheduledItem;
   timeZone: string;
 }) {
+  const icon =
+    item.kind === "transport" ? "→" : item.kind === "meal" ? "●" : "◆";
   return (
     <article className="timelineItem">
       <div className="timeRange">
@@ -115,26 +219,20 @@ function ScheduledItemCard({
         </time>
       </div>
       <div>
-        <p className="eyebrow">
-          {humanize(item.kind)}
+        <p className={`itemKind itemKind-${item.kind}`}>
+          <span aria-hidden="true">{icon}</span> {humanize(item.kind)}
           {item.transport_role ? ` · ${humanize(item.transport_role)}` : ""}
         </p>
         <h4>{item.title}</h4>
-        <dl className="itemMeta">
+        <dl className="itemSummary">
           <div>
             <dt>Location</dt>
-            <dd>{item.location_id ?? "Not supplied"}</dd>
+            <dd>{item.location_label ?? "Not supplied"}</dd>
           </div>
           <div>
             <dt>Estimated cost</dt>
             <dd>{formatMoney(item.estimated_cost)}</dd>
           </div>
-          {item.source_record_id ? (
-            <div>
-              <dt>Mock source</dt>
-              <dd>{item.source_record_id}</dd>
-            </div>
-          ) : null}
         </dl>
       </div>
     </article>
@@ -154,7 +252,7 @@ function AccommodationCard({
         <p className="eyebrow">Non-time-blocking stay</p>
         <h3>{stay.title}</h3>
       </div>
-      <dl className="itemMeta">
+      <dl className="itemSummary">
         <div>
           <dt>Stay</dt>
           <dd>
@@ -171,18 +269,12 @@ function AccommodationCard({
         </div>
         <div>
           <dt>Location</dt>
-          <dd>{stay.location_id ?? "Not supplied"}</dd>
+          <dd>{stay.location_label ?? "Not supplied"}</dd>
         </div>
         <div>
           <dt>Estimated cost</dt>
           <dd>{formatMoney(stay.estimated_cost)}</dd>
         </div>
-        {stay.source_record_id ? (
-          <div>
-            <dt>Mock source</dt>
-            <dd>{stay.source_record_id}</dd>
-          </div>
-        ) : null}
       </dl>
       <p className="nonBlockingNote">
         Shown separately; this stay does not block activity time.
@@ -245,21 +337,101 @@ function CostBreakdown({
   );
 }
 
-function DetailList({ title, values }: { title: string; values: string[] }) {
-  if (!values.length) return null;
+function VisibleWarnings({ warnings }: { warnings: string[] }) {
+  if (!warnings.length) return null;
   return (
-    <section className="resultSection">
-      <h2>{title}</h2>
+    <section className="warningList" aria-labelledby="warnings-title">
+      <h2 id="warnings-title">Warnings and verification</h2>
       <ul>
-        {values.map((value) => (
-          <li key={value}>{value}</li>
+        {warnings.map((warning) => (
+          <li key={warning}>{warning}</li>
         ))}
       </ul>
     </section>
   );
 }
 
-export function ItineraryResult({ result }: { result: PlanningSuccess }) {
+function ExpandableDetailList({
+  title,
+  values,
+}: {
+  title: string;
+  values: string[];
+}) {
+  if (!values.length || values.every((value) => !value)) return null;
+  return (
+    <details className="technicalDetails">
+      <summary>{title}</summary>
+      <ul>
+        {values.map((value) => (
+          <li key={value}>{value}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function ProvenanceDetails({ result }: { result: PlanningSuccess }) {
+  const sourced = [
+    ...result.proposed_itinerary.scheduled_items.map((item) => ({
+      key: item.item_id,
+      title: item.title,
+      label: item.location_label,
+      locationId: item.location_id,
+      sourceId: item.source_record_id,
+    })),
+    ...result.proposed_itinerary.accommodation_stays.map((stay) => ({
+      key: stay.stay_id,
+      title: stay.title,
+      label: stay.location_label,
+      locationId: stay.location_id,
+      sourceId: stay.source_record_id,
+    })),
+  ];
+  return (
+    <details className="technicalDetails provenanceDetails">
+      <summary>Sources and technical details</summary>
+      <ul className="provenanceList">
+        {sourced.map((item) => (
+          <li key={item.key}>
+            <strong>{item.title}</strong>
+            <dl>
+              <div>
+                <dt>Location</dt>
+                <dd>{item.label ?? "Not supplied"}</dd>
+              </div>
+              <div>
+                <dt>Location ID</dt>
+                <dd>{item.locationId ?? "Not supplied"}</dd>
+              </div>
+              <div>
+                <dt>Mock source</dt>
+                <dd>{item.sourceId ?? "Not supplied"}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <dl>
+        <div>
+          <dt>Fixture snapshot</dt>
+          <dd>{result.fixture_snapshot_version}</dd>
+        </div>
+        <div>
+          <dt>Planner</dt>
+          <dd>{result.planner_id}</dd>
+        </div>
+      </dl>
+    </details>
+  );
+}
+
+export function ItineraryResult({
+  result,
+}: {
+  result: PlanningSuccess & { experiment?: CoordinatorExperiment };
+}) {
+  const headingRef = useResultHeadingFocus();
   const timeZone = result.request.destination_timezone ?? "UTC";
   const ordered = [...result.proposed_itinerary.scheduled_items].sort(
     (left, right) =>
@@ -272,18 +444,32 @@ export function ItineraryResult({ result }: { result: PlanningSuccess }) {
   }
 
   return (
-    <div className="results" aria-live="polite">
+    <div className="results">
+      <p className="srOnly" role="status">
+        Proposed itinerary ready for {result.request.destination}.
+      </p>
       <header className="resultHeader">
         <p className="eyebrow">Proposed itinerary</p>
-        <h1>{result.request.destination}</h1>
-        <p>
-          Times shown in {timeZone}. Estimates come from fixture{" "}
-          {result.fixture_snapshot_version}.
+        <h1 ref={headingRef} tabIndex={-1}>
+          {result.request.destination}
+        </h1>
+        <p className="resultContext">
+          {result.request.origin} → {result.request.destination} ·{" "}
+          {formatLocalDate(result.request.start_date)} –{" "}
+          {formatLocalDate(result.request.end_date)} · Times shown in {timeZone}
         </p>
       </header>
-      <ValidationNotice report={result.validation_report} />
-      <ConstraintSummary request={result.request} />
+      <PlanningApproach experiment={result.experiment} />
+      <ResultAtAGlance result={result} />
+      <ResultDisclosure disclosures={result.disclosures} />
+      <VisibleWarnings warnings={result.warnings} />
       <div className="resultLayout">
+        <aside className="summaryRail">
+          <CostBreakdown
+            costs={result.cost_breakdown}
+            request={result.request}
+          />
+        </aside>
         <div className="itineraryColumn">
           <section aria-labelledby="daily-plan-title">
             <h2 id="daily-plan-title">Day-by-day plan</h2>
@@ -323,73 +509,67 @@ export function ItineraryResult({ result }: { result: PlanningSuccess }) {
               </div>
             </section>
           ) : null}
-          <DetailList
-            title="Matched interests"
-            values={[result.matched_interests.map(humanize).join(", ")]}
-          />
-          <DetailList
-            title="Planning rationale"
+          <ExpandableDetailList
+            title="Why this plan"
             values={result.planning_rationale}
           />
-          <DetailList title="Assumptions" values={result.assumptions} />
-          <DetailList title="Warnings" values={result.warnings} />
-          {result.proposed_itinerary.non_blocking_markers.length ? (
-            <section className="resultSection">
-              <h2>Informational markers</h2>
-              <ul>
-                {result.proposed_itinerary.non_blocking_markers.map(
-                  (marker) => (
-                    <li key={marker.marker_id}>{marker.title}</li>
-                  ),
-                )}
-              </ul>
-            </section>
-          ) : null}
-        </div>
-        <aside className="summaryRail">
-          <CostBreakdown
-            costs={result.cost_breakdown}
-            request={result.request}
+          <ExpandableDetailList
+            title="Matched interests"
+            values={
+              result.matched_interests.length
+                ? [result.matched_interests.map(humanize).join(", ")]
+                : []
+            }
           />
-          <section className="versionCard" aria-label="Plan versions">
-            <h2>Proposal details</h2>
-            <dl>
-              <div>
-                <dt>Fixture snapshot</dt>
-                <dd>{result.fixture_snapshot_version}</dd>
-              </div>
-              <div>
-                <dt>Planner</dt>
-                <dd>{result.planner_id}</dd>
-              </div>
-            </dl>
-          </section>
-        </aside>
+          <ExpandableDetailList
+            title="Assumptions"
+            values={result.assumptions}
+          />
+          {result.proposed_itinerary.non_blocking_markers.length ? (
+            <ExpandableDetailList
+              title="Informational markers"
+              values={result.proposed_itinerary.non_blocking_markers.map(
+                (marker) => marker.title,
+              )}
+            />
+          ) : null}
+          <ConstraintSummary request={result.request} />
+          <ProvenanceDetails result={result} />
+        </div>
       </div>
     </div>
   );
 }
 
-export function PlanningFailure({ result }: { result: PlanningFailureType }) {
+export function PlanningFailure({
+  result,
+}: {
+  result: PlanningFailureType & { experiment?: CoordinatorExperiment };
+}) {
+  const headingRef = useResultHeadingFocus();
   return (
-    <div className="results" aria-live="polite">
+    <div className="results">
+      <p className="srOnly" role="status">
+        TripPilot could not create a valid plan.
+      </p>
       <header className="resultHeader failureHeader">
         <p className="eyebrow">Planning result</p>
-        <h1>Could not create a valid plan</h1>
+        <h1 ref={headingRef} tabIndex={-1}>
+          Could not create a valid plan
+        </h1>
         <p>{result.explanation}</p>
       </header>
+      <PlanningApproach experiment={result.experiment} />
+      <ResultDisclosure disclosures={result.disclosures} />
       <ValidationNotice report={result.validation_report} />
-      <ConstraintSummary request={result.request} />
+      <VisibleWarnings warnings={result.warnings} />
       {result.relevant_constraints.length ? (
         <section
           className="resultSection"
           aria-labelledby="review-constraints-title"
         >
           <h2 id="review-constraints-title">Constraints to review</h2>
-          <p>
-            Adjust the form using only the constraints identified by the
-            planner:
-          </p>
+          <p>Adjust only the constraints identified by the planner:</p>
           <ul>
             {result.relevant_constraints.map((value) => (
               <li key={value}>{value}</li>
@@ -397,8 +577,8 @@ export function PlanningFailure({ result }: { result: PlanningFailureType }) {
           </ul>
         </section>
       ) : null}
-      <DetailList title="Assumptions" values={result.assumptions} />
-      <DetailList title="Warnings" values={result.warnings} />
+      <ConstraintSummary request={result.request} />
+      <ExpandableDetailList title="Assumptions" values={result.assumptions} />
       <details className="technicalDetails">
         <summary>Technical details</summary>
         <dl>

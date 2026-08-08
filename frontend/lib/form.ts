@@ -2,6 +2,7 @@ import {
   SUPPORTED_CURRENCIES,
   SUPPORTED_PACES,
   type Currency,
+  type CoordinatorPlanRequest,
   type Interest,
   type Pace,
   type TripPlanRequest,
@@ -18,10 +19,12 @@ export interface FormValues {
   pace: Pace;
   earliestActivityTime: string;
   interests: Interest[];
+  coordinatorOptIn: boolean;
+  preferenceNotes: string;
 }
 
 export type FieldName =
-  | Exclude<keyof FormValues, "interests">
+  | Exclude<keyof FormValues, "interests" | "coordinatorOptIn">
   | "interests"
   | "form";
 export type FormErrors = Partial<Record<FieldName, string>>;
@@ -37,7 +40,46 @@ export const INITIAL_FORM_VALUES: FormValues = {
   pace: "balanced",
   earliestActivityTime: "09:00",
   interests: [],
+  coordinatorOptIn: false,
+  preferenceNotes: "",
 };
+
+export function normalizePreferenceNotes(value: string): string | null {
+  const normalized = value.normalize("NFC").replace(/[\r\n\t]/gu, " ");
+  for (const character of Array.from(normalized)) {
+    const codePoint = character.codePointAt(0)!;
+    const isUnpairedSurrogate =
+      character.length === 1 && codePoint >= 0xd800 && codePoint <= 0xdfff;
+    if (
+      codePoint <= 0x1f ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      isUnpairedSurrogate ||
+      codePoint === 0x061c ||
+      (codePoint >= 0x200e && codePoint <= 0x200f) ||
+      (codePoint >= 0x202a && codePoint <= 0x202e) ||
+      (codePoint >= 0x2066 && codePoint <= 0x2069)
+    ) {
+      throw new Error("Preference notes contain unsupported characters.");
+    }
+  }
+  const result = normalized
+    .replace(/\p{White_Space}+/gu, " ")
+    .replace(/^ +| +$/gu, "");
+  if (!result) return null;
+  if (Array.from(result).length > 300) {
+    throw new Error("Preference notes must be 300 characters or fewer.");
+  }
+  return result;
+}
+
+export function preferenceNoteCodePointCount(value: string): number {
+  const normalized = value
+    .normalize("NFC")
+    .replace(/[\r\n\t]/gu, " ")
+    .replace(/\p{White_Space}+/gu, " ")
+    .replace(/^ +| +$/gu, "");
+  return Array.from(normalized).length;
+}
 
 export function parseMoneyToMinorUnits(value: string): number | null {
   const normalized = value.trim();
@@ -114,6 +156,16 @@ export function validateForm(values: FormValues): FormErrors {
   if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(values.earliestActivityTime)) {
     errors.earliestActivityTime = "Enter a valid local time.";
   }
+  if (values.coordinatorOptIn) {
+    try {
+      normalizePreferenceNotes(values.preferenceNotes);
+    } catch (error) {
+      errors.preferenceNotes =
+        error instanceof Error
+          ? error.message
+          : "Check the extra preference notes.";
+    }
+  }
   return errors;
 }
 
@@ -132,5 +184,14 @@ export function toApiRequest(values: FormValues): TripPlanRequest {
     interests: values.interests,
     pace: values.pace,
     earliest_activity_time: `${values.earliestActivityTime}:00`,
+  };
+}
+
+export function toCoordinatorApiRequest(
+  values: FormValues,
+): CoordinatorPlanRequest {
+  return {
+    ...toApiRequest(values),
+    preference_notes: normalizePreferenceNotes(values.preferenceNotes),
   };
 }

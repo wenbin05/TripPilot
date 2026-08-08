@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from trippilot.domain import Interest, Itinerary, ValidationReport
+from trippilot.domain import (
+    Interest,
+    Itinerary,
+    ProviderSnapshot,
+    ValidationReport,
+)
 
 
 class PlanningFailureCode(StrEnum):
@@ -45,3 +50,43 @@ class PlanningFailure:
 
 
 PlanningResult = PlanningSuccess | PlanningFailure
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalCandidate:
+    """One canonical proposal plus the exact snapshot used to validate it."""
+
+    itinerary: Itinerary
+    provider_snapshot: ProviderSnapshot
+    validation_report: ValidationReport
+    matched_interests: tuple[Interest, ...]
+
+    def __post_init__(self) -> None:
+        if not self.validation_report.is_valid:
+            raise ValueError("canonical candidates must be validator-clean")
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateSet:
+    """Bounded, ordered canonical proposals for one normalized request."""
+
+    candidates: tuple[CanonicalCandidate, ...]
+    fixture_snapshot_version: str
+    generator_id: str
+    assumptions: tuple[str, ...]
+    disclosures: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not 1 <= len(self.candidates) <= 5:
+            raise ValueError("candidate sets must contain between one and five items")
+        if any(
+            candidate == existing
+            for index, candidate in enumerate(self.candidates)
+            for existing in self.candidates[:index]
+        ):
+            raise ValueError("candidate sets cannot contain exact duplicates")
+        if not self.fixture_snapshot_version or not self.generator_id:
+            raise ValueError("candidate-set metadata cannot be empty")
+
+
+CandidateEnumerationResult = CandidateSet | PlanningFailure

@@ -53,10 +53,47 @@ coordinator:
 - cap retries, tokens, and time synchronously;
 - separate system instructions from untrusted user/provider text;
 - do not expose hidden prompts or chain-of-thought; and
-- log safe operational metadata rather than raw prompts by default.
+- log only the safe operational metadata defined by the experiment contract.
+
+For the first coordinator experiment, the model may only select or abstain among
+two to five deterministic, validator-clean candidate IDs bound to the request
+and fixture snapshot. It emits controlled preference-interpretation tags, not
+an itinerary, factual selection claims, money, timestamps, provider facts,
+arbitrary prose, or disclosures. Selection facts are derived deterministically.
+The service resolves the canonical candidate and revalidates it. Malformed
+output, refusal, timeout, missing configuration, unknown IDs, or validation
+failure always use the deterministic fallback.
+
+Do not log or trace raw preference notes, prompts, model responses, provider
+payloads, candidate bodies, or validator context. If an SDK enables tracing or
+sensitive trace content by default, disable it explicitly and prove the control
+with a canary-leak test. Keep any model key server-side and never silently swap
+models or providers when configuration is missing.
+
+The only experiment network egress is the server's configured hosted-model
+adapter to an allowlisted provider destination. The model receives no tools and
+has no direct egress. Candidate summaries contain strict derived facts and
+stable IDs only, never raw provider titles, descriptions, or source labels.
+
+The internal coordinator boundary normalizes preference notes in a fixed order:
+NFC, CR/LF/TAB replacement, rejection of all remaining forbidden control,
+bidirectional, and unpaired-surrogate characters, allowed-whitespace collapse,
+trim, then the 300-code-point limit. Raw decision output is capped at 4,096 UTF-8
+bytes and parsed as one
+strict JSON value; duplicate keys, non-finite numbers, trailing values, unknown
+fields, and type coercion are rejected. Raw-decision parser and adapter failures
+return stable codes only and never include raw notes, model output, or validation
+exception text. Callers must not log or return direct Pydantic validation errors
+from internal context construction because those errors may quote rejected input.
 
 Prompt injection is possible even in external travel descriptions. Provider data
 must never grant authority or override system and domain rules.
+
+The isolated coordinator endpoint does not echo preference notes or expose
+request-scoped candidate IDs. Its current no-adapter implementation performs no
+model egress and reports `MODEL_NOT_CONFIGURED` before returning the validated
+fixed-ranker fallback. The existing deterministic endpoint remains isolated and
+does not accept preference notes or experiment metadata.
 
 ## 6. Travel-specific safety and claims
 

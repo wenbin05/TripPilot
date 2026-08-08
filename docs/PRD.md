@@ -60,7 +60,7 @@ All inputs cross a strict request boundary.
 | Travellers | Required integer, minimum 1; initial maximum 10 |
 | Budget | Required positive all-in estimated total for all travellers, in integer minor units |
 | Currency | Required supported ISO 4217 code; initially CAD or USD |
-| Interests | At least one value from a documented set, with optional free text deferred |
+| Interests | At least one value from a documented set; optional free text is not accepted by the deterministic MVP endpoint |
 | Pace | One of `relaxed`, `balanced`, or `packed` |
 | Earliest activity time | Required local wall-clock time at the destination |
 
@@ -195,10 +195,31 @@ For a fixed evaluation set:
 
 ## 13. Later roadmap
 
-After the deterministic core is proven: add a thin FastAPI endpoint, then a
-single coordinator agent, a Next.js client, persistence with PostgreSQL, selected
-live providers, containerization, and deployment. Each addition requires a
-separate scope and threat review.
+The deterministic core, FastAPI endpoint, and Next.js client are complete.
+Internal deterministic candidate enumeration now returns one to five canonical,
+validator-clean proposals without changing the standard endpoint, and eight
+frozen structured requests meet the two-candidate diversity prerequisite.
+Strict internal coordinator schemas, bounded normalization and parsing, and an
+SDK-neutral adapter protocol are also defined without any model integration.
+Canonical summary construction, request-scoped IDs, and an isolated opt-in API
+and frontend contract are now implemented; the endpoint currently returns an
+explicit validated deterministic fallback because no hosted adapter is
+configured. The next bounded phase adds that single adapter and deadline-bound
+orchestration. The eventual optional coordinator ranks two to five candidates
+using soft preferences.
+It does not generate authoritative itinerary facts and is retained only if the
+gates in `docs/COORDINATOR_EXPERIMENT.md` pass. Persistence, selected live
+providers, containerization, and deployment remain later changes requiring
+separate scope and threat reviews.
+
+The approved experiment may add `preference_notes`: optional soft-preference
+text normalized and limited to at most 300 Unicode code points. It is not part
+of the accepted deterministic endpoint. When implemented behind explicit
+experiment opt-in, it is treated as untrusted ranking input and cannot override
+structured constraints
+or add supported requirements. Booking, payment, multi-city, visa, safety,
+medical, dietary, mobility, accessibility, and current-availability requests in
+this field must not be presented as satisfied.
 
 ## 14. Open product decisions
 

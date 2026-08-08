@@ -35,7 +35,9 @@ The initial UI should be one responsive planning flow:
 
 1. **Trip details:** origin, destination, dates, travellers.
 2. **Constraints:** budget/currency, pace, earliest activity time.
-3. **Interests:** selectable tags.
+3. **Interests:** selectable tags followed by an unchecked-by-default
+   coordinator experiment opt-in. Enabling it reveals optional extra trip
+   preferences within this section.
 4. **Review:** summarized inputs and generate action.
 5. **Result:** constraint summary, day cards, cost breakdown, assumptions,
    warnings, and mock-data/no-booking disclosure.
@@ -73,6 +75,10 @@ substitute for testing.
 - `DateRangeField` that explains the one-to-four-day inclusive rule.
 - `MoneyField` pairing amount and currency.
 - `InterestPicker` using keyboard-accessible toggles.
+- `PreferenceNotes` using a labelled textarea, a 300-code-point counter, linked
+  hint/error text, and an always-visible warning not to enter sensitive
+  information or unsupported booking, medical, accessibility, safety, or visa
+  requirements.
 - `PaceSelector` with a short description of each pace.
 - `ConstraintSummary` displayed before and after planning.
 - `DayCard` containing a chronological timeline.
@@ -96,6 +102,30 @@ substitute for testing.
 - **Empty:** explain which inputs are needed to generate a proposal.
 
 All statuses require text and an icon, not color alone.
+
+Coordinator loading text says that TripPilot is comparing valid mock-data
+options and will check all hard constraints. Do not show invented progress. If
+the coordinator falls back, show a non-blocking warning that extra preferences
+could not be applied, so TripPilot selected a validated proposal using its
+deterministic fallback. Preserve all inputs and keep the existing no-plan state
+when neither path can plan.
+
+The opt-in uses `aria-expanded` and `aria-controls`. Disabling it hides the
+textarea and omits the notes from submission while preserving its browser-only
+form value. The Review summary displays `Extra preferences: None added` or the
+escaped submitted text. Results place submitted notes under `Soft preferences`,
+separate from authoritative constraints. After any completed plan or no-plan
+result, move focus to the result heading with temporary `tabIndex="-1"`; retain
+the current error-summary focus behavior for invalid form submission. Fallback
+warnings use an icon and text.
+
+Use “Planning approach: Standard” for the existing endpoint, “Planning approach:
+Coordinator-assisted experiment” for a valid model selection, and “Planning
+approach: Deterministic fallback” when the fixed ranker is used. Coordinator-
+assisted results may show a server-templated “How this proposal matched your
+preferences” section. Never describe the model as choosing the “best” trip.
+Follow “Constraints validated” with text explaining that hard checks passed but
+prices, availability, and bookings were not confirmed.
 
 ## 7. Responsive and accessible behavior
 
@@ -137,7 +167,32 @@ domain reason is available.
 - CAD and USD estimates display two decimal minor units. Timestamps are grouped
   and formatted with the destination IANA timezone returned by the API.
 
-## 10. Decisions that can wait
+## 10. Benchmark-driven density decisions
+
+The current market and UI review is recorded in
+`docs/PRODUCT_UX_BENCHMARK.md`. TripPilot deliberately adopts day-by-day
+legibility, low-friction preference capture, nearby evidence, and itinerary-cost
+cohesion without adopting a chat shell, map workspace, discovery feed,
+collaboration suite, or booking marketplace.
+
+The next refinement is a density pass rather than a visual rebrand. On desktop,
+compress the hero and notice, begin Trip details in the first viewport, and use
+an editable main column with a concise sticky review/action rail. On mobile,
+retain one semantic column. Result hierarchy is validation and all-in budget,
+then the daily itinerary, then progressive details. The precise planning/result
+viewport and usability gates in the benchmark are acceptance requirements.
+
+Default timeline rows show time, item type/title, and estimated cost. Raw
+location and source-record IDs plus fixture and planner identifiers belong in
+expandable technical/provenance details with explicit item-to-source mapping.
+A human-readable canonical location label remains visible. Actionable warnings
+remain near validation/budget; only non-actionable details collapse. A result
+at-a-glance row contains no more than
+validation status, trip length, estimated total, and remaining budget; route and
+dates use a short context line. On mobile, this validation/budget summary appears
+before the day cards.
+
+## 11. Decisions that can wait
 
 - Final brand identity, typeface, and illustration direction.
 - Display convention for taxes and category estimates.

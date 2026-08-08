@@ -67,6 +67,10 @@ Core modelling decisions:
   category cost breakdown, all-in total, assumptions, and disclosures.
 - `Violation`: stable code, message, severity, and affected field/item IDs.
 - `ValidationReport`: `is_valid` plus an ordered collection of violations.
+- `CanonicalCandidate`: one validator-clean itinerary plus the exact provider
+  snapshot required for independent revalidation.
+- `CandidateSet`: one to five ordered canonical candidates bound to one fixture
+  snapshot and deterministic generator version.
 
 Use strict Pydantic models that reject unknown fields at API, provider, fixture,
 and future LLM boundaries. Use frozen domain dataclasses where framework
@@ -173,17 +177,53 @@ planner identifier, assumptions, and no-booking disclosures. Provider-boundary
 exceptions are converted to a generic incomplete-data failure without exposing
 the provider exception message.
 
-Later, one coordinator agent may:
+Milestone 7 approves the design contract for one optional coordinator
+experiment. Deterministic code generates two to five validator-clean canonical
+candidates. The coordinator may interpret bounded soft-preference notes, select
+one candidate ID or abstain, and return controlled preference-interpretation
+tags. Factual selection summaries are derived by deterministic code. The model
+does not assemble an itinerary or emit authoritative prose, timestamps, money,
+provider facts, or disclosures.
 
-- interpret interests and trade-offs;
-- choose among mock provider candidates;
-- assemble a structured proposal; and
-- explain decisions and validator feedback.
+The service binds candidate IDs to the normalized request and fixture snapshot,
+strictly parses the decision, resolves the canonical candidate, and runs the
+complete validator again. The coordinator cannot waive constraints, calculate
+totals, access providers or unrestricted tools, spawn runtime agents, or claim
+booking success. The service owns a single allowlisted retry and deterministic
+fallback. `docs/COORDINATOR_EXPERIMENT.md` is the detailed experiment contract.
 
-The agent receives bounded, schema-validated context and must emit a strict
-structured proposal. It cannot waive hard constraints, calculate authoritative
-totals, access tools directly, spawn runtime agents, or claim booking success.
-The service validates its output and controls any bounded retry.
+Milestone 8 adds an internal service-only candidate enumerator. It walks the
+same stable, bounded transport/accommodation, pace-profile, and agenda-ranking
+order as the standard planner; candidate zero therefore remains the existing
+`/plan` selection. Alternatives are admitted only when the primary-activity
+sequence differs and a deterministic cost, local-transfer, activity-count,
+interest-count, or daypart-count trade-off crosses the frozen materiality rule.
+Every retained
+candidate is budget-checked and revalidated against its own canonical provider
+snapshot. The generator returns one candidate when only one qualifies and never
+pads the set. No public API or frontend contract changes in this milestone.
+
+Milestone 9 adds an internal coordinator boundary under `services/`: frozen,
+extra-forbid Pydantic schemas for candidate summaries, contexts, decisions, and
+retry feedback; control-safe preference-note normalization; a bounded raw JSON
+decision parser with duplicate-key and non-finite-number rejection; and a
+synchronous SDK-neutral adapter protocol with an absolute monotonic deadline.
+Decision IDs and prioritized interests are checked against the originating
+context. Raw-output parsing and adapter failures expose stable typed codes rather
+than raw model or validation content; direct internal schema errors are never a
+public or logging boundary. This milestone provides no adapter implementation,
+model call, public route, API-key configuration, or frontend behavior.
+
+Milestone 10 builds coordinator summaries only from canonical provider records,
+binds cryptographically random candidate IDs in request-local service memory,
+and computes closed selection facts from exact candidate metrics. The isolated
+`POST /api/v1/itineraries/coordinate` request extends the standard request with
+normalized optional preference notes; its response adds strict experiment
+metadata without echoing notes or candidate IDs. The frontend opt-in is
+unchecked and collapsed by default. Because no hosted adapter exists yet, this
+route makes no model call and explicitly reports `MODEL_NOT_CONFIGURED` while
+returning candidate zero through the validated fixed deterministic ranker. The
+existing `/plan` route and response contract remain unchanged.
 
 ## 10. API delivery layer
 
@@ -223,12 +263,26 @@ contract tests, the corresponding TypeScript types and runtime guards, and
 positive and negative frontend guard tests in the same pull request.
 
 Unknown response fields remain a known difference: backend response schemas
-forbid them, while the current frontend guards accept them. Before the
-coordinator milestone changes any public response shape, make an explicit
-decision between continuing handwritten runtime validation and adopting a
-generated contract plus runtime-validation strategy. Generated compile-time
-types alone are insufficient because untrusted HTTP responses still require
-runtime checks.
+forbid them, while the current frontend guards accept them. Generated
+compile-time types alone are insufficient because untrusted HTTP responses still
+require runtime checks.
+
+For the first coordinator experiment, handwritten frontend runtime guards are
+retained. Deterministic planning behavior and its endpoint path remain
+unchanged; a future coordinator implementation uses a separate experimental
+endpoint. Its implementation must update backend schemas and contract tests,
+frontend types and runtime guards,
+and positive and negative guard tests atomically. Contract generation remains a
+later decision rather than a dependency of the experiment.
+
+The separately approved benchmark-driven UI refinement requires a shared,
+additive, server-authored human-readable
+location label alongside the canonical `location_id` for scheduled items and
+accommodation. This is an additive public-contract change and must follow the
+same atomic backend schema/OpenAPI/frontend guard/test workflow. Labels come
+from canonical provider records, never model output. The UI keeps the label in
+the primary scan path and moves raw IDs into expandable provenance details with
+an explicit item-to-source mapping.
 
 ## 11. Persistence and deployment
 

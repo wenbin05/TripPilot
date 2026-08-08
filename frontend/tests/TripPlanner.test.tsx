@@ -2,20 +2,33 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TripPlanner } from "@/components/TripPlanner";
-import { ApiRequestError, createPlan } from "@/lib/api-client";
+import {
+  ApiRequestError,
+  createCoordinatorPlan,
+  createPlan,
+} from "@/lib/api-client";
 import { SUPPORTED_INTERESTS, type PlanResponse } from "@/lib/api-types";
 import { humanize } from "@/lib/format";
-import { failureResponse, successResponse } from "./fixtures";
+import {
+  coordinatorFallbackResponse,
+  failureResponse,
+  successResponse,
+} from "./fixtures";
 
 vi.mock("@/lib/api-client", async () => {
   const actual =
     await vi.importActual<typeof import("@/lib/api-client")>(
       "@/lib/api-client",
     );
-  return { ...actual, createPlan: vi.fn() };
+  return {
+    ...actual,
+    createPlan: vi.fn(),
+    createCoordinatorPlan: vi.fn(),
+  };
 });
 
 const mockedCreatePlan = vi.mocked(createPlan);
+const mockedCreateCoordinatorPlan = vi.mocked(createCoordinatorPlan);
 
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Origin"), "Kingston, Ontario");
@@ -41,6 +54,7 @@ async function submitValid(response: PlanResponse = successResponse) {
 
 beforeEach(() => {
   mockedCreatePlan.mockReset();
+  mockedCreateCoordinatorPlan.mockReset();
 });
 
 describe("TripPlanner form", () => {
@@ -70,6 +84,16 @@ describe("TripPlanner form", () => {
     for (const interest of SUPPORTED_INTERESTS) {
       expect(screen.getByLabelText(humanize(interest))).toBeInTheDocument();
     }
+  });
+
+  it("renders one review region and one submit action", () => {
+    render(<TripPlanner />);
+    expect(
+      screen.getAllByRole("heading", { name: "Review and submit" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Create proposed itinerary" }),
+    ).toHaveLength(1);
   });
 
   it("reports missing fields in an accessible summary", async () => {
@@ -165,6 +189,85 @@ describe("TripPlanner form", () => {
     await user.keyboard(" ");
     expect(food).not.toBeChecked();
   });
+
+  it("keeps the coordinator experiment unchecked and collapsed by default", () => {
+    render(<TripPlanner />);
+
+    const toggle = screen.getByLabelText(/Try coordinator-assisted experiment/);
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByLabelText(/Extra preferences/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Standard")).toBeInTheDocument();
+  });
+
+  it("preserves hidden notes and sends only normalized opted-in preferences", async () => {
+    const user = userEvent.setup();
+    mockedCreateCoordinatorPlan.mockResolvedValueOnce(
+      coordinatorFallbackResponse,
+    );
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    const toggle = screen.getByLabelText(/Try coordinator-assisted experiment/);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const notes = screen.getByLabelText(/Extra preferences/);
+    await user.type(notes, "  Quieter stay\nwith varied activities  ");
+    expect(screen.getByText(/When a hosted model is configured/)).toBeVisible();
+    expect(
+      screen.getByText(/Do not include personal or sensitive/),
+    ).toBeVisible();
+
+    await user.click(toggle);
+    expect(
+      screen.queryByLabelText(/Extra preferences/),
+    ).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(screen.getByLabelText(/Extra preferences/)).toHaveValue(
+      "  Quieter stay\nwith varied activities  ",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    expect(mockedCreatePlan).not.toHaveBeenCalled();
+    expect(mockedCreateCoordinatorPlan).toHaveBeenCalledWith({
+      origin: "Kingston, Ontario",
+      destination: "Toronto, Ontario",
+      start_date: "2026-08-10",
+      end_date: "2026-08-11",
+      travellers: 1,
+      total_budget_minor: 100_000,
+      currency: "CAD",
+      interests: ["arts_culture"],
+      pace: "balanced",
+      earliest_activity_time: "09:00:00",
+      preference_notes: "Quieter stay with varied activities",
+    });
+  });
+
+  it("blocks over-limit preference notes without making a request", async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    await user.click(
+      screen.getByLabelText(/Try coordinator-assisted experiment/),
+    );
+    await user.type(
+      screen.getByLabelText(/Extra preferences/),
+      "x".repeat(301),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Preference notes must be 300 characters or fewer.",
+    );
+    expect(mockedCreatePlan).not.toHaveBeenCalled();
+    expect(mockedCreateCoordinatorPlan).not.toHaveBeenCalled();
+  });
 });
 
 describe("TripPlanner submission states", () => {
@@ -186,7 +289,7 @@ describe("TripPlanner submission states", () => {
       "Creating your proposal",
     );
     resolvePlan(successResponse);
-    await screen.findByText("Constraints validated");
+    await screen.findByRole("heading", { name: "Plan at a glance" });
   });
 
   it("displays a successful proposed itinerary", async () => {
@@ -200,22 +303,111 @@ describe("TripPlanner submission states", () => {
     };
     render(<TripPlanner />);
     await submitValid(responseWithPartiallyMatchedInterests);
-    expect(
-      await screen.findByText("Constraints validated"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Day-by-day plan")).toBeInTheDocument();
-    expect(screen.getByText("Harbour walk")).toBeInTheDocument();
-    const matchedInterests = screen.getByRole("heading", {
-      name: "Matched interests",
+    const resultHeading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Toronto, Ontario",
     });
-    const matchedSection = matchedInterests.closest("section");
-    expect(matchedSection).toHaveTextContent("Arts Culture");
-    expect(matchedSection).not.toHaveTextContent("History");
+    await waitFor(() => expect(resultHeading).toHaveFocus());
+    expect(screen.getByText("Day-by-day plan")).toBeInTheDocument();
     expect(
-      screen
-        .getByRole("heading", { name: "Your constraints" })
-        .closest("section"),
-    ).toHaveTextContent("Arts Culture, History");
+      screen.getByRole("heading", { level: 4, name: "Harbour walk" }),
+    ).toBeInTheDocument();
+    const matchedInterests = screen.getByText("Matched interests");
+    const matchedDetails = matchedInterests.closest("details");
+    expect(matchedDetails).toHaveTextContent("Arts Culture");
+    expect(matchedDetails).not.toHaveTextContent("History");
+    const constraints = screen.getByText("Trip details and preferences");
+    expect(constraints.closest("details")).toHaveTextContent(
+      "Arts Culture, History",
+    );
+  });
+
+  it("labels coordinator fallback without implying preferences were applied", async () => {
+    const user = userEvent.setup();
+    mockedCreateCoordinatorPlan.mockResolvedValueOnce(
+      coordinatorFallbackResponse,
+    );
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    await user.click(
+      screen.getByLabelText(/Try coordinator-assisted experiment/),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    const approach = await screen.findByLabelText("Planning approach");
+    expect(approach).toHaveTextContent(
+      "Planning approach: Deterministic fallback",
+    );
+    expect(
+      screen.getByText(/extra preferences could not be applied/i),
+    ).toBeVisible();
+    expect(screen.queryByText(/coordinator ranked/i)).not.toBeInTheDocument();
+  });
+
+  it("shows exactly four high-priority summary values", async () => {
+    render(<TripPlanner />);
+    await submitValid();
+    const heading = await screen.findByRole("heading", {
+      name: "Plan at a glance",
+    });
+    const glance = heading.closest("section");
+    expect(glance).not.toBeNull();
+    const entries = glance!.querySelectorAll(":scope > dl > div");
+    expect(entries).toHaveLength(4);
+    expect(within(entries[0] as HTMLElement).getByText("Passed")).toBeVisible();
+    expect(entries[1]).toHaveTextContent("Trip length2 days");
+    expect(entries[2]).toHaveTextContent("Estimated totalCAD 500.00");
+    expect(entries[3]).toHaveTextContent("Remaining budgetCAD 500.00");
+  });
+
+  it("puts the cost summary before the day plan in mobile reading order", async () => {
+    render(<TripPlanner />);
+    await submitValid();
+    const cost = await screen.findByRole("heading", { name: "Cost breakdown" });
+    const plan = screen.getByRole("heading", { name: "Day-by-day plan" });
+    expect(
+      cost.compareDocumentPosition(plan) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("uses readable locations and keeps raw IDs in closed provenance details", async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await submitValid();
+    await screen.findByRole("heading", { name: "Day-by-day plan" });
+
+    const dayPlan = screen
+      .getByRole("heading", { name: "Day-by-day plan" })
+      .closest("section");
+    const accommodation = screen
+      .getByRole("heading", { name: "Accommodation" })
+      .closest("section");
+    expect(dayPlan).toHaveTextContent("Toronto Central Station");
+    expect(dayPlan).toHaveTextContent("Civic Shapes Gallery");
+    expect(dayPlan).not.toHaveTextContent("toronto-station");
+    expect(accommodation).toHaveTextContent("Campus Guest House");
+    expect(accommodation).not.toHaveTextContent("campus-stay");
+    expect(dayPlan).toHaveTextContent("Transport");
+    expect(dayPlan).toHaveTextContent("Activity");
+
+    const provenanceSummary = screen.getByText("Sources and technical details");
+    const provenance = provenanceSummary.closest("details");
+    expect(provenance).not.toHaveAttribute("open");
+    expect(provenance).toHaveTextContent("toronto-station");
+    expect(provenance).toHaveTextContent("mock-train-inbound");
+    await user.click(provenanceSummary);
+    expect(provenance).toHaveAttribute("open");
+  });
+
+  it("keeps warnings and result disclosure visible", async () => {
+    render(<TripPlanner />);
+    await submitValid();
+    expect(await screen.findByText("Hours are mock estimates.")).toBeVisible();
+    const disclosure = screen.getByLabelText("Proposal disclosure");
+    expect(disclosure).toBeVisible();
+    expect(disclosure).toHaveTextContent("Nothing has been booked");
   });
 
   it("sorts scheduled items chronologically in day cards", async () => {
@@ -268,12 +460,11 @@ describe("TripPlanner submission states", () => {
   it("shows structured planning failure without calling it a network error", async () => {
     render(<TripPlanner />);
     await submitValid(failureResponse);
-    expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: "Could not create a valid plan",
-      }),
-    ).toBeInTheDocument();
+    const resultHeading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Could not create a valid plan",
+    });
+    await waitFor(() => expect(resultHeading).toHaveFocus());
     expect(screen.getByText("budget 1000 CAD")).toBeInTheDocument();
     expect(screen.queryByText("Proposal unavailable")).not.toBeInTheDocument();
   });

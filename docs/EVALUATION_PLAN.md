@@ -52,11 +52,35 @@ The initial suite should include:
 
 ### Future coordinator evaluation
 
-When the single coordinator agent is introduced, freeze model/version,
-instructions, fixture snapshot, and generation parameters for repeatable runs.
-Validate every output deterministically. Compare it with the deterministic
-baseline on the same cases and record invalid-output and repair rates. Never use
-LLM self-grading as the source of truth for hard constraints.
+The approved coordinator design is evaluated through the versioned
+`coordinator-eval-v1-draft` protocol in `docs/COORDINATOR_EXPERIMENT.md`; freeze
+the executable `coordinator-eval-v1` manifest only after deterministic candidate
+generation exists. Freeze an immutable model snapshot where available and
+always record the returned model,
+prompt/contract version, fixture snapshot, candidate set, and generation
+parameters. Hosted generations are assessed across repeated runs rather than
+claimed to be bitwise deterministic. Validate every selected canonical candidate
+deterministically, compare it with the baseline on the same cases, and record
+invalid-output, repair, fallback, token, cost, and latency rates. Never use LLM
+self-grading as the source of truth for hard constraints.
+
+### Candidate-diversity prerequisite
+
+The internal deterministic enumerator is gated by the eight frozen normalized
+requests in `backend/tests/unit/test_candidate_generation.py`. Each request must
+produce two to five pairwise materially different candidates under the exact
+rule in `docs/CANDIDATE_DIVERSITY.md`. Candidate zero must equal the existing
+standard planner selection. Every candidate is independently revalidated,
+budget-clean, canonically referenced, arithmetically reconciled, and stable
+across repeated runs. Fewer than two candidates for any frozen prerequisite case
+blocks the later coordinator boundary; candidates are never duplicated to meet
+the minimum.
+
+The Milestone 10 boundary suite also verifies canonical-only summary derivation,
+request-local opaque candidate IDs, strict selection-fact optima, normalized and
+non-echoed preference notes, isolation from `/plan`, explicit no-model fallback,
+frontend runtime guards, collapsed opt-in behavior, note preservation, and
+responsive disclosure layout.
 
 ## 3. Metrics and gates
 
@@ -108,6 +132,14 @@ Each evaluation run records:
   disguised as markers.
 - Mock records containing instruction-like content or unsupported currencies.
 - Proposals that omit disclosures or present estimates as confirmed prices.
+- Unknown, stale, homoglyph, or cross-request coordinator candidate IDs.
+- Strict-output coercion, extra fields, oversized arrays/prose, refusals,
+  truncation, timeouts, provider errors, and missing model configuration.
+- Canary preference data appearing in logs, traces, errors, or metadata.
+- Preference-note control and bidirectional characters, normalization-boundary
+  lengths, duplicate JSON keys, non-finite numbers, trailing JSON values,
+  oversized raw decisions, missing explicit nulls, and context-invalid IDs or
+  prioritized interests.
 
 ## 6. Manual review rubric
 

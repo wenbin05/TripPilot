@@ -5,11 +5,14 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP through Milestone 6: the deterministic domain core, validated mock
+MVP through Milestone 10: the deterministic domain core, validated mock
 travel-data provider, bounded deterministic planner, local FastAPI delivery
 layer, responsive Next.js planning interface, and a recorded passing
-deterministic acceptance baseline. It intentionally contains no live provider,
-persistence, or booking functionality.
+deterministic acceptance baseline, plus internal validator-clean candidate
+enumeration, strict internal coordinator contracts, and an isolated coordinator
+opt-in path that currently returns an explicit deterministic fallback. It
+intentionally contains no live provider, hosted-model runtime, persistence, or
+booking functionality.
 
 ## First MVP
 
@@ -68,9 +71,12 @@ background workers, or production deployment.
 ├── data/mock/
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── CANDIDATE_DIVERSITY.md
+│   ├── COORDINATOR_EXPERIMENT.md
 │   ├── DESIGN_SYSTEM.md
 │   ├── EVALUATION_PLAN.md
 │   ├── PRD.md
+│   ├── PRODUCT_UX_BENCHMARK.md
 │   └── SECURITY.md
 └── frontend/                 # Next.js App Router MVP client
 ```
@@ -153,7 +159,10 @@ rejects wildcard configuration.
 
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Candidate diversity evidence](docs/CANDIDATE_DIVERSITY.md)
+- [Single coordinator experiment contract](docs/COORDINATOR_EXPERIMENT.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
+- [Product and UX benchmark](docs/PRODUCT_UX_BENCHMARK.md)
 - [Security](docs/SECURITY.md)
 - [Design system](docs/DESIGN_SYSTEM.md)
 - [Deterministic MVP acceptance report](docs/DETERMINISTIC_MVP_ACCEPTANCE.md)
@@ -167,3 +176,14 @@ offline mock provider, local FastAPI endpoints, a responsive one-page Next.js
 client, and the passing deterministic acceptance baseline documented in
 `docs/DETERMINISTIC_MVP_ACCEPTANCE.md`. No database, external provider, LLM,
 authentication, booking, or deployment configuration has been added.
+
+Milestone 7 defines the bounded product, UX, architecture, security, and
+evaluation contract for a future optional single-coordinator experiment.
+Milestone 8 implements only its deterministic candidate-enumeration prerequisite
+and proves eight frozen requests have pairwise material alternatives. Milestone
+9 adds strict internal context, summary, decision, retry, parsing, and adapter
+contracts without implementing an adapter. Milestone 10 adds canonical summary
+construction, request-scoped candidate IDs, the isolated `/coordinate` contract,
+and a collapsed-by-default frontend opt-in. Until a later adapter milestone, the
+endpoint reports `MODEL_NOT_CONFIGURED` and returns the validated deterministic
+fallback. The repository still contains no hosted-model runtime or API key.

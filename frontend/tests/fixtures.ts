@@ -1,4 +1,8 @@
-import type { PlanningFailure, PlanningSuccess } from "@/lib/api-types";
+import type {
+  CoordinatorPlanResponse,
+  PlanningFailure,
+  PlanningSuccess,
+} from "@/lib/api-types";
 
 const request = {
   origin: "Kingston, Ontario",
@@ -33,6 +37,7 @@ export const successResponse: PlanningSuccess = {
           end: "2026-08-10T16:00:00-04:00",
         },
         location_id: "toronto-harbour",
+        location_label: "Toronto Harbour",
         estimated_cost: { amount_minor: 0, currency: "CAD" },
         source_record_id: "mock-activity-harbour",
         pricing: perPerson,
@@ -47,6 +52,7 @@ export const successResponse: PlanningSuccess = {
           end: "2026-08-10T10:00:00-04:00",
         },
         location_id: "toronto-station",
+        location_label: "Toronto Central Station",
         estimated_cost: { amount_minor: 12_000, currency: "CAD" },
         source_record_id: "mock-train-inbound",
         pricing: {
@@ -64,6 +70,7 @@ export const successResponse: PlanningSuccess = {
           end: "2026-08-10T12:30:00-04:00",
         },
         location_id: "toronto-gallery",
+        location_label: "Civic Shapes Gallery",
         estimated_cost: { amount_minor: 2_500, currency: "CAD" },
         source_record_id: "mock-activity-gallery",
         pricing: {
@@ -81,6 +88,7 @@ export const successResponse: PlanningSuccess = {
           end: "2026-08-11T20:00:00-04:00",
         },
         location_id: "toronto-station",
+        location_label: "Toronto Central Station",
         estimated_cost: { amount_minor: 12_000, currency: "CAD" },
         source_record_id: "mock-train-outbound",
         pricing: {
@@ -98,6 +106,7 @@ export const successResponse: PlanningSuccess = {
         check_out: "2026-08-11T11:00:00-04:00",
         number_of_nights: 1,
         location_id: "campus-stay",
+        location_label: "Campus Guest House",
         estimated_cost: { amount_minor: 15_000, currency: "CAD" },
         source_record_id: "mock-stay-campus",
         pricing: {
@@ -162,4 +171,19 @@ export const failureResponse: PlanningFailure = {
     "All prices and schedules are mock estimates.",
     "Nothing has been booked; verify all details before purchase.",
   ],
+};
+
+export const coordinatorFallbackResponse: CoordinatorPlanResponse = {
+  ...successResponse,
+  planner_id: "trippilot-fixed-ranker-v1",
+  warnings: [
+    "The extra preferences could not be applied. TripPilot selected a validated proposal using its deterministic fallback.",
+  ],
+  experiment: {
+    contract_version: "coordinator-experiment-v1",
+    approach: "deterministic_fallback",
+    interpreted_preference_tags: [],
+    selection_facts: ["lowest_estimated_cost", "shortest_transfer_time"],
+    fallback_code: "MODEL_NOT_CONFIGURED",
+  },
 };

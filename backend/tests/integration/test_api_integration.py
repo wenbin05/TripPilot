@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from trippilot.api.app import app, create_app
 from trippilot.api.dependencies import get_planner, get_provider
 from trippilot.domain import Severity, ValidationReport, Violation, ViolationCode
+from trippilot.providers import LocationRecord
 from trippilot.services import PlanningSuccess, plan_trip
 
 
@@ -76,6 +77,36 @@ def test_successful_api_itineraries_pass_the_complete_validator(
     assert payload["planning_rationale"]
 
 
+def test_success_uses_canonical_provider_location_labels(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/plan", json=request_body(end_date="2026-08-11")
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    provider = get_provider()
+    located_items = (
+        *payload["proposed_itinerary"]["scheduled_items"],
+        *payload["proposed_itinerary"]["accommodation_stays"],
+    )
+    assert located_items
+    for item in located_items:
+        location = provider.get_record(item["location_id"])
+        assert isinstance(location, LocationRecord)
+        assert item["location_label"] == location.name
+
+    assert {
+        item["location_label"]
+        for item in payload["proposed_itinerary"]["scheduled_items"]
+    } >= {"Toronto Central Transit Hall"}
+    assert payload["proposed_itinerary"]["accommodation_stays"][0][
+        "location_label"
+    ] in {"Campus Corner Lodge", "Harbour Study Hostel"}
+
+
 def test_exact_budget_remains_a_valid_success(client: TestClient) -> None:
     first = client.post("/api/v1/itineraries/plan", json=request_body()).json()
     exact_budget = first["cost_breakdown"]["total_estimated_cost"]["amount_minor"]
@@ -136,6 +167,64 @@ def test_identical_requests_have_stable_response_structure(client: TestClient) -
 
     assert first.status_code == second.status_code == 200
     assert first.json() == second.json()
+
+
+def test_coordinator_endpoint_returns_explicit_validated_fallback(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={
+            **request_body(end_date="2026-08-11"),
+            "preference_notes": "Prefer varied daytime activities",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert payload["validation_report"] == {"is_valid": True, "violations": []}
+    assert payload["planner_id"] == "trippilot-fixed-ranker-v1"
+    assert payload["experiment"]["contract_version"] == "coordinator-experiment-v1"
+    assert payload["experiment"]["approach"] == "deterministic_fallback"
+    assert payload["experiment"]["fallback_code"] == "MODEL_NOT_CONFIGURED"
+    assert payload["experiment"]["interpreted_preference_tags"] == []
+    assert set(payload["experiment"]["selection_facts"]) <= {
+        "lowest_estimated_cost",
+        "largest_budget_buffer",
+        "fewest_activities",
+        "most_activities",
+        "greatest_activity_variety",
+        "shortest_transfer_time",
+        "greatest_interest_coverage",
+        "most_daytime_activities",
+        "most_evening_activities",
+    }
+    assert "Prefer varied" not in response.text
+    assert "candidate_" not in response.text
+    assert any(
+        "extra preferences" in warning.casefold() for warning in payload["warnings"]
+    )
+
+
+def test_coordinator_planning_failure_has_no_model_fallback_claim(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={**request_body(budget=1), "preference_notes": None},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "planning_failure"
+    assert payload["experiment"] == {
+        "contract_version": "coordinator-experiment-v1",
+        "approach": "deterministic_fallback",
+        "interpreted_preference_tags": [],
+        "selection_facts": [],
+        "fallback_code": None,
+    }
 
 
 def test_provider_failure_is_sanitized_without_exception_details(

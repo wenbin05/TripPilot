@@ -1,4 +1,7 @@
 import type {
+  CoordinatorExperiment,
+  CoordinatorPlanRequest,
+  CoordinatorPlanResponse,
   Money,
   NormalizedRequest,
   PlanResponse,
@@ -7,6 +10,9 @@ import type {
   ValidationReport,
 } from "./api-types";
 import {
+  COORDINATOR_FALLBACK_CODES,
+  COORDINATOR_SELECTION_FACTS,
+  INTERPRETED_PREFERENCE_TAGS,
   PLANNING_FAILURE_CODES,
   SUPPORTED_CURRENCIES,
   SUPPORTED_INTERESTS,
@@ -57,6 +63,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isStringArray(value: unknown): value is string[] {
   return (
     Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function isPublicLabel(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.trim().length > 0 && value.length <= 200
   );
 }
 
@@ -178,7 +190,9 @@ function isScheduledItem(value: unknown): boolean {
     typeof value.title === "string" &&
     ["activity", "meal", "transport"].includes(value.kind as string) &&
     isTimeWindow(value.window) &&
-    (value.location_id === null || typeof value.location_id === "string") &&
+    ((value.location_id === null && value.location_label === null) ||
+      (typeof value.location_id === "string" &&
+        isPublicLabel(value.location_label))) &&
     isMoney(value.estimated_cost) &&
     (value.source_record_id === null ||
       typeof value.source_record_id === "string") &&
@@ -196,7 +210,9 @@ function isAccommodationStay(value: unknown): boolean {
     isTimestamp(value.check_in) &&
     isTimestamp(value.check_out) &&
     Number.isInteger(value.number_of_nights) &&
-    (value.location_id === null || typeof value.location_id === "string") &&
+    ((value.location_id === null && value.location_label === null) ||
+      (typeof value.location_id === "string" &&
+        isPublicLabel(value.location_label))) &&
     isMoney(value.estimated_cost) &&
     (value.source_record_id === null ||
       typeof value.source_record_id === "string") &&
@@ -242,10 +258,14 @@ function isCostBreakdown(value: unknown): boolean {
   );
 }
 
-function isPlanResponse(value: unknown): value is PlanResponse {
+function isPlanningPayload(value: unknown): value is PlanResponse {
   if (!isRecord(value) || !isResponseBase(value)) return false;
+  const validationReport = value.validation_report;
+  if (!isValidationReport(validationReport)) return false;
   if (value.status === "success") {
     return (
+      validationReport.is_valid === true &&
+      validationReport.violations.length === 0 &&
       typeof value.fixture_snapshot_version === "string" &&
       isProposedItinerary(value.proposed_itinerary) &&
       isCostBreakdown(value.cost_breakdown) &&
@@ -259,22 +279,76 @@ function isPlanResponse(value: unknown): value is PlanResponse {
   }
   return (
     value.status === "planning_failure" &&
+    validationReport.is_valid === false &&
     isEnumValue(value.failure_code, PLANNING_FAILURE_CODES) &&
     typeof value.explanation === "string" &&
     isStringArray(value.relevant_constraints)
   );
 }
 
-export async function createPlan(
-  request: TripPlanRequest,
+function isUniqueEnumArray<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  maximum: number,
+): value is T[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= maximum &&
+    value.every((item) => isEnumValue(item, allowed)) &&
+    new Set(value).size === value.length
+  );
+}
+
+function isCoordinatorExperiment(
+  value: unknown,
+): value is CoordinatorExperiment {
+  if (!isRecord(value)) return false;
+  const fallbackValid =
+    value.fallback_code === null ||
+    isEnumValue(value.fallback_code, COORDINATOR_FALLBACK_CODES);
+  return (
+    value.contract_version === "coordinator-experiment-v1" &&
+    (value.approach === "coordinator_assisted" ||
+      value.approach === "deterministic_fallback") &&
+    isUniqueEnumArray(
+      value.interpreted_preference_tags,
+      INTERPRETED_PREFERENCE_TAGS,
+      5,
+    ) &&
+    isUniqueEnumArray(value.selection_facts, COORDINATOR_SELECTION_FACTS, 9) &&
+    fallbackValid &&
+    (value.approach !== "coordinator_assisted" || value.fallback_code === null)
+  );
+}
+
+function isPlanResponse(value: unknown): value is PlanResponse {
+  return (
+    isRecord(value) && !("experiment" in value) && isPlanningPayload(value)
+  );
+}
+
+function isCoordinatorPlanResponse(
+  value: unknown,
+): value is CoordinatorPlanResponse {
+  return (
+    isRecord(value) &&
+    isPlanningPayload(value) &&
+    isCoordinatorExperiment(value.experiment)
+  );
+}
+
+async function postPlan<T>(
+  path: string,
+  request: TripPlanRequest | CoordinatorPlanRequest,
+  guard: (value: unknown) => value is T,
   signal?: AbortSignal,
-): Promise<PlanResponse> {
+): Promise<T> {
   const baseUrl = (
     process.env.NEXT_PUBLIC_TRIPPILOT_API_BASE_URL || DEFAULT_API_BASE_URL
   ).replace(/\/$/, "");
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/api/v1/itineraries/plan`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
@@ -294,8 +368,27 @@ export async function createPlan(
   if (response.status === 422 && isValidationError(payload)) {
     throw new ApiRequestError("validation", payload);
   }
-  if (!response.ok || !isPlanResponse(payload)) {
+  if (!response.ok || !guard(payload)) {
     throw new ApiRequestError("unexpected");
   }
   return payload;
+}
+
+export async function createPlan(
+  request: TripPlanRequest,
+  signal?: AbortSignal,
+): Promise<PlanResponse> {
+  return postPlan("/api/v1/itineraries/plan", request, isPlanResponse, signal);
+}
+
+export async function createCoordinatorPlan(
+  request: CoordinatorPlanRequest,
+  signal?: AbortSignal,
+): Promise<CoordinatorPlanResponse> {
+  return postPlan(
+    "/api/v1/itineraries/coordinate",
+    request,
+    isCoordinatorPlanResponse,
+    signal,
+  );
 }
