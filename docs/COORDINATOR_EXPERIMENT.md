@@ -370,7 +370,10 @@ justify a cluttered interface or reduced comprehension.
    normalization, bounded raw-output parsing, request-context decision checks,
    and an SDK-neutral adapter protocol. No adapter implementation or model call
    is included.
-3. Add the isolated experimental API contract and frontend opt-in.
+3. **Complete:** add canonical summary construction, request-scoped IDs, the
+   isolated experimental API contract, and the collapsed-by-default frontend
+   opt-in. Until step 4, the endpoint makes no model call and returns an explicit
+   `MODEL_NOT_CONFIGURED` deterministic fallback.
 4. Add one hosted-model adapter, server-side configuration, safe metadata, and
    deterministic fallback.
 5. Run the frozen evaluation before enabling the experiment by default anywhere.

@@ -2,20 +2,33 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TripPlanner } from "@/components/TripPlanner";
-import { ApiRequestError, createPlan } from "@/lib/api-client";
+import {
+  ApiRequestError,
+  createCoordinatorPlan,
+  createPlan,
+} from "@/lib/api-client";
 import { SUPPORTED_INTERESTS, type PlanResponse } from "@/lib/api-types";
 import { humanize } from "@/lib/format";
-import { failureResponse, successResponse } from "./fixtures";
+import {
+  coordinatorFallbackResponse,
+  failureResponse,
+  successResponse,
+} from "./fixtures";
 
 vi.mock("@/lib/api-client", async () => {
   const actual =
     await vi.importActual<typeof import("@/lib/api-client")>(
       "@/lib/api-client",
     );
-  return { ...actual, createPlan: vi.fn() };
+  return {
+    ...actual,
+    createPlan: vi.fn(),
+    createCoordinatorPlan: vi.fn(),
+  };
 });
 
 const mockedCreatePlan = vi.mocked(createPlan);
+const mockedCreateCoordinatorPlan = vi.mocked(createCoordinatorPlan);
 
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Origin"), "Kingston, Ontario");
@@ -41,6 +54,7 @@ async function submitValid(response: PlanResponse = successResponse) {
 
 beforeEach(() => {
   mockedCreatePlan.mockReset();
+  mockedCreateCoordinatorPlan.mockReset();
 });
 
 describe("TripPlanner form", () => {
@@ -175,6 +189,85 @@ describe("TripPlanner form", () => {
     await user.keyboard(" ");
     expect(food).not.toBeChecked();
   });
+
+  it("keeps the coordinator experiment unchecked and collapsed by default", () => {
+    render(<TripPlanner />);
+
+    const toggle = screen.getByLabelText(/Try coordinator-assisted experiment/);
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByLabelText(/Extra preferences/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Standard")).toBeInTheDocument();
+  });
+
+  it("preserves hidden notes and sends only normalized opted-in preferences", async () => {
+    const user = userEvent.setup();
+    mockedCreateCoordinatorPlan.mockResolvedValueOnce(
+      coordinatorFallbackResponse,
+    );
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    const toggle = screen.getByLabelText(/Try coordinator-assisted experiment/);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const notes = screen.getByLabelText(/Extra preferences/);
+    await user.type(notes, "  Quieter stay\nwith varied activities  ");
+    expect(screen.getByText(/When a hosted model is configured/)).toBeVisible();
+    expect(
+      screen.getByText(/Do not include personal or sensitive/),
+    ).toBeVisible();
+
+    await user.click(toggle);
+    expect(
+      screen.queryByLabelText(/Extra preferences/),
+    ).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(screen.getByLabelText(/Extra preferences/)).toHaveValue(
+      "  Quieter stay\nwith varied activities  ",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    expect(mockedCreatePlan).not.toHaveBeenCalled();
+    expect(mockedCreateCoordinatorPlan).toHaveBeenCalledWith({
+      origin: "Kingston, Ontario",
+      destination: "Toronto, Ontario",
+      start_date: "2026-08-10",
+      end_date: "2026-08-11",
+      travellers: 1,
+      total_budget_minor: 100_000,
+      currency: "CAD",
+      interests: ["arts_culture"],
+      pace: "balanced",
+      earliest_activity_time: "09:00:00",
+      preference_notes: "Quieter stay with varied activities",
+    });
+  });
+
+  it("blocks over-limit preference notes without making a request", async () => {
+    const user = userEvent.setup();
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    await user.click(
+      screen.getByLabelText(/Try coordinator-assisted experiment/),
+    );
+    await user.type(
+      screen.getByLabelText(/Extra preferences/),
+      "x".repeat(301),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Preference notes must be 300 characters or fewer.",
+    );
+    expect(mockedCreatePlan).not.toHaveBeenCalled();
+    expect(mockedCreateCoordinatorPlan).not.toHaveBeenCalled();
+  });
 });
 
 describe("TripPlanner submission states", () => {
@@ -227,6 +320,30 @@ describe("TripPlanner submission states", () => {
     expect(constraints.closest("details")).toHaveTextContent(
       "Arts Culture, History",
     );
+  });
+
+  it("labels coordinator fallback without implying preferences were applied", async () => {
+    const user = userEvent.setup();
+    mockedCreateCoordinatorPlan.mockResolvedValueOnce(
+      coordinatorFallbackResponse,
+    );
+    render(<TripPlanner />);
+    await fillValidForm(user);
+    await user.click(
+      screen.getByLabelText(/Try coordinator-assisted experiment/),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Create proposed itinerary" }),
+    );
+
+    const approach = await screen.findByLabelText("Planning approach");
+    expect(approach).toHaveTextContent(
+      "Planning approach: Deterministic fallback",
+    );
+    expect(
+      screen.getByText(/extra preferences could not be applied/i),
+    ).toBeVisible();
+    expect(screen.queryByText(/coordinator ranked/i)).not.toBeInTheDocument();
   });
 
   it("shows exactly four high-priority summary values", async () => {

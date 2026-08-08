@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 
 import pytest
@@ -113,6 +114,52 @@ def test_openapi_documents_stable_plan_envelope(client: TestClient) -> None:
     operation = response.json()["paths"]["/api/v1/itineraries/plan"]["post"]
     assert "200" in operation["responses"]
     assert "422" in operation["responses"]
+
+
+def test_openapi_documents_isolated_coordinator_envelope(client: TestClient) -> None:
+    document = client.get("/openapi.json").json()
+
+    assert "/api/v1/itineraries/plan" in document["paths"]
+    operation = document["paths"]["/api/v1/itineraries/coordinate"]["post"]
+    assert "200" in operation["responses"]
+    assert "422" in operation["responses"]
+    request_schema = document["components"]["schemas"]["CoordinatorPlanRequest"]
+    assert request_schema["additionalProperties"] is False
+    assert request_schema["properties"]["preference_notes"]["anyOf"][1] == {
+        "type": "null"
+    }
+
+
+@pytest.mark.parametrize(
+    "notes",
+    ["x" * 301, "safe\u202etext", 42],
+)
+def test_coordinator_rejects_invalid_preference_notes(
+    client: TestClient, notes: object
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={**valid_request(), "preference_notes": notes},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "REQUEST_VALIDATION_ERROR"
+    assert "safe" not in response.text
+
+
+def test_coordinator_rejects_escaped_surrogate_at_json_boundary(
+    client: TestClient,
+) -> None:
+    body = {**valid_request(), "preference_notes": "safe\ud800text"}
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        content=json.dumps(body, ensure_ascii=True),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "REQUEST_VALIDATION_ERROR"
+    assert "safe" not in response.text
 
 
 def test_openapi_requires_canonical_location_labels(client: TestClient) -> None:

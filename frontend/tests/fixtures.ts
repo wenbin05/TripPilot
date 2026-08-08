@@ -1,4 +1,8 @@
-import type { PlanningFailure, PlanningSuccess } from "@/lib/api-types";
+import type {
+  CoordinatorPlanResponse,
+  PlanningFailure,
+  PlanningSuccess,
+} from "@/lib/api-types";
 
 const request = {
   origin: "Kingston, Ontario",
@@ -167,4 +171,19 @@ export const failureResponse: PlanningFailure = {
     "All prices and schedules are mock estimates.",
     "Nothing has been booked; verify all details before purchase.",
   ],
+};
+
+export const coordinatorFallbackResponse: CoordinatorPlanResponse = {
+  ...successResponse,
+  planner_id: "trippilot-fixed-ranker-v1",
+  warnings: [
+    "The extra preferences could not be applied. TripPilot selected a validated proposal using its deterministic fallback.",
+  ],
+  experiment: {
+    contract_version: "coordinator-experiment-v1",
+    approach: "deterministic_fallback",
+    interpreted_preference_tags: [],
+    selection_facts: ["lowest_estimated_cost", "shortest_transfer_time"],
+    fallback_code: "MODEL_NOT_CONFIGURED",
+  },
 };

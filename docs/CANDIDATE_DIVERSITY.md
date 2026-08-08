@@ -75,8 +75,8 @@ schemas, the preference-note boundary, a fixed ranker, and an adapter protocol.
 
 ## 4. Next work
 
-Strict internal candidate-summary, coordinator-context, decision, retry, and
-adapter contracts are now defined. The next phase builds summaries from
-canonical candidates, assigns opaque request-scoped IDs in orchestration, and
-adds an isolated experimental API and explicit frontend opt-in. The enumerator
-still intentionally does not create those IDs.
+Strict internal contracts, canonical summary construction, request-scoped IDs,
+the isolated experimental API, and the explicit frontend opt-in are now
+implemented. The enumerator still intentionally does not create candidate IDs.
+The next phase adds one configured hosted-model adapter, deadline-bound
+orchestration, retry/fallback handling, and safe operational metadata.

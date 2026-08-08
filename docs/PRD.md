@@ -201,9 +201,12 @@ validator-clean proposals without changing the standard endpoint, and eight
 frozen structured requests meet the two-candidate diversity prerequisite.
 Strict internal coordinator schemas, bounded normalization and parsing, and an
 SDK-neutral adapter protocol are also defined without any model integration.
-The next bounded phase adds canonical summary construction, request-scoped IDs,
-and an isolated opt-in API and frontend contract. The eventual optional
-coordinator ranks two to five candidates using soft preferences.
+Canonical summary construction, request-scoped IDs, and an isolated opt-in API
+and frontend contract are now implemented; the endpoint currently returns an
+explicit validated deterministic fallback because no hosted adapter is
+configured. The next bounded phase adds that single adapter and deadline-bound
+orchestration. The eventual optional coordinator ranks two to five candidates
+using soft preferences.
 It does not generate authoritative itinerary facts and is retained only if the
 gates in `docs/COORDINATOR_EXPERIMENT.md` pass. Persistence, selected live
 providers, containerization, and deployment remain later changes requiring

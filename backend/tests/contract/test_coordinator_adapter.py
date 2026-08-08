@@ -4,7 +4,6 @@ import socket
 
 import pytest
 
-from trippilot.api.app import create_app
 from trippilot.domain import Interest, Pace
 from trippilot.services.coordinator_adapter import (
     CoordinatorAdapter,
@@ -142,10 +141,3 @@ def test_protocol_and_stub_use_no_network(monkeypatch: pytest.MonkeyPatch) -> No
     assert adapter.decide(context(), deadline_monotonic=1.0) == (
         CoordinatorAdapterFailure(CoordinatorAdapterFailureCode.NOT_CONFIGURED)
     )
-
-
-def test_internal_contract_adds_no_coordinator_api_route() -> None:
-    paths = create_app(cors_origins=()).openapi()["paths"]
-
-    assert "/api/v1/itineraries/coordinate" not in paths
-    assert "/api/v1/itineraries/plan" in paths

@@ -8,11 +8,31 @@ from fastapi import APIRouter, Depends
 
 from trippilot.domain import Money, Pricing, TripRequest, ValidationReport
 from trippilot.providers import LocationRecord, TravelDataProvider
-from trippilot.services import PlanningFailure, PlanningFailureCode, PlanningSuccess
+from trippilot.services import (
+    FIXED_RANKER_ID,
+    BoundCoordinatorContext,
+    PlanningFailure,
+    PlanningFailureCode,
+    PlanningSuccess,
+    build_coordinator_context,
+    derive_selection_facts,
+)
 
-from .dependencies import Planner, get_planner, get_provider
+from .dependencies import (
+    CandidateEnumerator,
+    Planner,
+    get_candidate_enumerator,
+    get_planner,
+    get_provider,
+)
 from .schemas import (
     AccommodationStayResponse,
+    CoordinatorExperimentResponse,
+    CoordinatorFallbackCode,
+    CoordinatorPlanningFailureResponse,
+    CoordinatorPlanningSuccessResponse,
+    CoordinatorPlanRequest,
+    CoordinatorPlanResponse,
     CostBreakdownResponse,
     CurrencyCode,
     ExplicitFeeResponse,
@@ -37,11 +57,22 @@ from .schemas import (
 router = APIRouter()
 ProviderDependency = Annotated[TravelDataProvider, Depends(get_provider)]
 PlannerDependency = Annotated[Planner, Depends(get_planner)]
+CandidateEnumeratorDependency = Annotated[
+    CandidateEnumerator, Depends(get_candidate_enumerator)
+]
 
 PLANNING_RATIONALE = (
     "The bounded deterministic planner selected a validator-clean proposal using "
     "mock provider records, requested interests, estimated cost, transfer time, "
     "and stable record identifiers.",
+)
+COORDINATOR_FALLBACK_RATIONALE = (
+    "The coordinator experiment was unavailable, so the fixed deterministic "
+    "ranker selected a validator-clean proposal from canonical mock candidates.",
+)
+COORDINATOR_FALLBACK_WARNING = (
+    "The extra preferences could not be applied. TripPilot selected a validated "
+    "proposal using its deterministic fallback."
 )
 
 
@@ -114,6 +145,9 @@ def _success(
     request: TripRequest,
     result: PlanningSuccess,
     provider: TravelDataProvider,
+    *,
+    planning_rationale: tuple[str, ...] = PLANNING_RATIONALE,
+    warnings: tuple[str, ...] = (),
 ) -> PlanningSuccessResponse:
     if not result.validation_report.is_valid:
         raise RuntimeError("planner returned an invalid result as successful")
@@ -183,9 +217,9 @@ def _success(
         ),
         validation_report=_report(result.validation_report),
         matched_interests=result.matched_interests,
-        planning_rationale=PLANNING_RATIONALE,
+        planning_rationale=planning_rationale,
         assumptions=result.assumptions,
-        warnings=(),
+        warnings=warnings,
         fixture_snapshot_version=result.fixture_snapshot_version,
         planner_id=result.planner_id,
         disclosures=_disclosures(result.disclosures),
@@ -247,3 +281,75 @@ def plan_itinerary(
     if isinstance(result, PlanningSuccess):
         return _success(request, result, provider)
     return _failure(request, result)
+
+
+@router.post(
+    "/api/v1/itineraries/coordinate",
+    response_model=CoordinatorPlanResponse,
+    tags=["itineraries"],
+    summary="Run the isolated coordinator experiment with deterministic fallback",
+    responses={
+        422: {"model": RequestErrorResponse},
+        500: {"model": InternalErrorResponse},
+    },
+)
+def coordinate_itinerary(
+    body: CoordinatorPlanRequest,
+    provider: ProviderDependency,
+    enumerator: CandidateEnumeratorDependency,
+) -> CoordinatorPlanResponse:
+    try:
+        destination = provider.get_destination(body.destination)
+    except Exception:
+        destination = None
+    destination_timezone = destination.timezone if destination is not None else "UTC"
+    request = body.to_domain(destination_timezone)
+    result = enumerator(request, provider)
+    experiment = CoordinatorExperimentResponse(
+        contract_version="coordinator-experiment-v1",
+        approach="deterministic_fallback",
+        interpreted_preference_tags=(),
+        selection_facts=(),
+        fallback_code=CoordinatorFallbackCode.MODEL_NOT_CONFIGURED,
+    )
+    if isinstance(result, PlanningFailure):
+        failure = _failure(request, result)
+        return CoordinatorPlanningFailureResponse(
+            **failure.model_dump(),
+            experiment=experiment.model_copy(update={"fallback_code": None}),
+        )
+
+    selected = result.candidates[0]
+    bound = build_coordinator_context(
+        request,
+        result,
+        provider,
+        preference_notes=body.preference_notes,
+    )
+    if isinstance(bound, BoundCoordinatorContext):
+        experiment = experiment.model_copy(
+            update={
+                "selection_facts": derive_selection_facts(
+                    bound.bindings[0].candidate_id, bound.context
+                )
+            }
+        )
+    fallback = PlanningSuccess(
+        itinerary=selected.itinerary,
+        validation_report=selected.validation_report,
+        fixture_snapshot_version=result.fixture_snapshot_version,
+        planner_id=FIXED_RANKER_ID,
+        matched_interests=selected.matched_interests,
+        assumptions=result.assumptions,
+        disclosures=result.disclosures,
+    )
+    success = _success(
+        request,
+        fallback,
+        provider,
+        planning_rationale=COORDINATOR_FALLBACK_RATIONALE,
+        warnings=(COORDINATOR_FALLBACK_WARNING,),
+    )
+    return CoordinatorPlanningSuccessResponse(
+        **success.model_dump(), experiment=experiment
+    )

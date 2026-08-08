@@ -76,6 +76,12 @@ across repeated runs. Fewer than two candidates for any frozen prerequisite case
 blocks the later coordinator boundary; candidates are never duplicated to meet
 the minimum.
 
+The Milestone 10 boundary suite also verifies canonical-only summary derivation,
+request-local opaque candidate IDs, strict selection-fact optima, normalized and
+non-echoed preference notes, isolation from `/plan`, explicit no-model fallback,
+frontend runtime guards, collapsed opt-in behavior, note preservation, and
+responsive disclosure layout.
+
 ## 3. Metrics and gates
 
 ### Required release gates

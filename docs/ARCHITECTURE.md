@@ -214,6 +214,17 @@ than raw model or validation content; direct internal schema errors are never a
 public or logging boundary. This milestone provides no adapter implementation,
 model call, public route, API-key configuration, or frontend behavior.
 
+Milestone 10 builds coordinator summaries only from canonical provider records,
+binds cryptographically random candidate IDs in request-local service memory,
+and computes closed selection facts from exact candidate metrics. The isolated
+`POST /api/v1/itineraries/coordinate` request extends the standard request with
+normalized optional preference notes; its response adds strict experiment
+metadata without echoing notes or candidate IDs. The frontend opt-in is
+unchecked and collapsed by default. Because no hosted adapter exists yet, this
+route makes no model call and explicitly reports `MODEL_NOT_CONFIGURED` while
+returning candidate zero through the validated fixed deterministic ranker. The
+existing `/plan` route and response contract remain unchanged.
+
 ## 10. API delivery layer
 
 Milestone 4 exposes `GET /health` and `POST /api/v1/itineraries/plan` from the

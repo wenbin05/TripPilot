@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time
+from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -26,7 +27,12 @@ from trippilot.domain import (
     TripRequest,
     ViolationCode,
 )
-from trippilot.services import PlanningFailureCode
+from trippilot.services import (
+    CoordinatorSelectionFact,
+    InterpretedPreferenceTag,
+    PlanningFailureCode,
+    normalize_preference_notes,
+)
 
 PublicLabel = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
@@ -79,6 +85,53 @@ class TripPlanRequest(ApiSchema):
             earliest_activity_time=self.earliest_activity_time,
             destination_timezone=destination_timezone,
         )
+
+
+class CoordinatorPlanRequest(TripPlanRequest):
+    preference_notes: str | None = None
+
+    @field_validator("preference_notes", mode="before")
+    @classmethod
+    def normalize_notes(cls, value: object) -> str | None:
+        try:
+            return normalize_preference_notes(value)
+        except TypeError, ValueError:
+            raise ValueError("preference notes are invalid") from None
+
+
+class CoordinatorFallbackCode(StrEnum):
+    MODEL_NOT_CONFIGURED = "MODEL_NOT_CONFIGURED"
+    MODEL_TIMEOUT = "MODEL_TIMEOUT"
+    MODEL_RATE_LIMITED = "MODEL_RATE_LIMITED"
+    MODEL_PROVIDER_ERROR = "MODEL_PROVIDER_ERROR"
+    MODEL_REFUSAL = "MODEL_REFUSAL"
+    MODEL_OUTPUT_INVALID = "MODEL_OUTPUT_INVALID"
+    MODEL_ABSTAINED = "MODEL_ABSTAINED"
+    UNKNOWN_CANDIDATE = "UNKNOWN_CANDIDATE"
+    CANDIDATE_REVALIDATION_FAILED = "CANDIDATE_REVALIDATION_FAILED"
+    DEADLINE_RESERVE_REACHED = "DEADLINE_RESERVE_REACHED"
+
+
+class CoordinatorExperimentResponse(ApiSchema):
+    contract_version: Literal["coordinator-experiment-v1"]
+    approach: Literal["coordinator_assisted", "deterministic_fallback"]
+    interpreted_preference_tags: tuple[InterpretedPreferenceTag, ...] = Field(
+        max_length=5
+    )
+    selection_facts: tuple[CoordinatorSelectionFact, ...] = Field(max_length=9)
+    fallback_code: CoordinatorFallbackCode | None
+
+    @model_validator(mode="after")
+    def require_consistent_unique_metadata(self) -> Self:
+        if len(set(self.interpreted_preference_tags)) != len(
+            self.interpreted_preference_tags
+        ):
+            raise ValueError("interpreted preference tags must be unique")
+        if len(set(self.selection_facts)) != len(self.selection_facts):
+            raise ValueError("selection facts must be unique")
+        if self.approach == "coordinator_assisted" and self.fallback_code is not None:
+            raise ValueError("coordinator-assisted results cannot have a fallback code")
+        return self
 
 
 class MoneyResponse(ApiSchema):
@@ -207,6 +260,20 @@ class PlanningFailureResponse(ApiSchema):
 
 PlanResponse = Annotated[
     PlanningSuccessResponse | PlanningFailureResponse, Field(discriminator="status")
+]
+
+
+class CoordinatorPlanningSuccessResponse(PlanningSuccessResponse):
+    experiment: CoordinatorExperimentResponse
+
+
+class CoordinatorPlanningFailureResponse(PlanningFailureResponse):
+    experiment: CoordinatorExperimentResponse
+
+
+CoordinatorPlanResponse = Annotated[
+    CoordinatorPlanningSuccessResponse | CoordinatorPlanningFailureResponse,
+    Field(discriminator="status"),
 ]
 
 

@@ -7,6 +7,17 @@ from .coordinator_adapter import (
     CoordinatorAdapterResult,
     CoordinatorAdapterSuccess,
 )
+from .coordinator_context import (
+    FIXED_RANKER_ID,
+    BoundCoordinatorContext,
+    CoordinatorCandidateBinding,
+    CoordinatorContextBuildFailure,
+    CoordinatorContextBuildFailureCode,
+    CoordinatorContextBuildResult,
+    CoordinatorSelectionFact,
+    build_coordinator_context,
+    derive_selection_facts,
+)
 from .coordinator_schemas import (
     MAX_COORDINATOR_DECISION_BYTES,
     AbstentionReason,
@@ -50,6 +61,7 @@ from .planner import (
 )
 
 __all__ = [
+    "FIXED_RANKER_ID",
     "MAX_COORDINATOR_DECISION_BYTES",
     "CANDIDATE_GENERATOR_ID",
     "AbstentionReason",
@@ -59,12 +71,18 @@ __all__ = [
     "CandidateSet",
     "CanonicalCandidate",
     "CandidateSummary",
+    "BoundCoordinatorContext",
     "CoordinatorAdapter",
     "CoordinatorAdapterFailure",
     "CoordinatorAdapterFailureCode",
     "CoordinatorAdapterResult",
     "CoordinatorAdapterSuccess",
     "CoordinatorContext",
+    "CoordinatorCandidateBinding",
+    "CoordinatorContextBuildFailure",
+    "CoordinatorContextBuildFailureCode",
+    "CoordinatorContextBuildResult",
+    "CoordinatorSelectionFact",
     "CoordinatorDecision",
     "CoordinatorOutputFailure",
     "CoordinatorOutputFailureCode",
@@ -86,6 +104,8 @@ __all__ = [
     "PlanningResult",
     "PlanningSuccess",
     "enumerate_trip_candidates",
+    "build_coordinator_context",
+    "derive_selection_facts",
     "normalize_preference_notes",
     "parse_coordinator_decision",
     "plan_trip",

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type {
   AccommodationStay,
+  CoordinatorExperiment,
   CostBreakdown as CostBreakdownType,
   NormalizedRequest,
   PlanningFailure as PlanningFailureType,
@@ -116,6 +117,29 @@ function ValidationNotice({ report }: { report: ValidationReport }) {
         <p>No validator-clean proposal was available for these constraints.</p>
       )}
     </section>
+  );
+}
+
+function PlanningApproach({
+  experiment,
+}: {
+  experiment?: CoordinatorExperiment;
+}) {
+  const label = !experiment
+    ? "Standard"
+    : experiment.approach === "coordinator_assisted"
+      ? "Coordinator-assisted experiment"
+      : "Deterministic fallback";
+  const description = !experiment
+    ? "Selected by TripPilot’s deterministic planner."
+    : experiment.approach === "coordinator_assisted"
+      ? "A coordinator ranked canonical, validator-clean proposals."
+      : "TripPilot selected a validator-clean proposal deterministically.";
+  return (
+    <aside className="approachNotice" aria-label="Planning approach">
+      <strong>Planning approach: {label}</strong>
+      <p>{description}</p>
+    </aside>
   );
 }
 
@@ -402,7 +426,11 @@ function ProvenanceDetails({ result }: { result: PlanningSuccess }) {
   );
 }
 
-export function ItineraryResult({ result }: { result: PlanningSuccess }) {
+export function ItineraryResult({
+  result,
+}: {
+  result: PlanningSuccess & { experiment?: CoordinatorExperiment };
+}) {
   const headingRef = useResultHeadingFocus();
   const timeZone = result.request.destination_timezone ?? "UTC";
   const ordered = [...result.proposed_itinerary.scheduled_items].sort(
@@ -431,6 +459,7 @@ export function ItineraryResult({ result }: { result: PlanningSuccess }) {
           {formatLocalDate(result.request.end_date)} · Times shown in {timeZone}
         </p>
       </header>
+      <PlanningApproach experiment={result.experiment} />
       <ResultAtAGlance result={result} />
       <ResultDisclosure disclosures={result.disclosures} />
       <VisibleWarnings warnings={result.warnings} />
@@ -512,7 +541,11 @@ export function ItineraryResult({ result }: { result: PlanningSuccess }) {
   );
 }
 
-export function PlanningFailure({ result }: { result: PlanningFailureType }) {
+export function PlanningFailure({
+  result,
+}: {
+  result: PlanningFailureType & { experiment?: CoordinatorExperiment };
+}) {
   const headingRef = useResultHeadingFocus();
   return (
     <div className="results">
@@ -526,6 +559,7 @@ export function PlanningFailure({ result }: { result: PlanningFailureType }) {
         </h1>
         <p>{result.explanation}</p>
       </header>
+      <PlanningApproach experiment={result.experiment} />
       <ResultDisclosure disclosures={result.disclosures} />
       <ValidationNotice report={result.validation_report} />
       <VisibleWarnings warnings={result.warnings} />

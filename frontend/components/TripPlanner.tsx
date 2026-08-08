@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPlan, ApiRequestError } from "@/lib/api-client";
+import {
+  ApiRequestError,
+  createCoordinatorPlan,
+  createPlan,
+} from "@/lib/api-client";
 import {
   SUPPORTED_INTERESTS,
   type Interest,
-  type PlanResponse,
+  type PlanningResponse,
 } from "@/lib/api-types";
 import {
   INITIAL_FORM_VALUES,
+  preferenceNoteCodePointCount,
   toApiRequest,
+  toCoordinatorApiRequest,
   validateForm,
   type FieldName,
   type FormErrors,
@@ -36,6 +42,7 @@ const API_TO_FORM_FIELD: Record<string, FieldName> = {
   interests: "interests",
   pace: "pace",
   earliest_activity_time: "earliestActivityTime",
+  preference_notes: "preferenceNotes",
 };
 
 const SAFE_BACKEND_MESSAGES: Partial<Record<FieldName, string>> = {
@@ -49,6 +56,7 @@ const SAFE_BACKEND_MESSAGES: Partial<Record<FieldName, string>> = {
   interests: "The backend requires supported interests.",
   pace: "The backend rejected this travel pace.",
   earliestActivityTime: "The backend rejected this local time.",
+  preferenceNotes: "The backend rejected the extra preference notes.",
 };
 
 function describedBy(
@@ -83,7 +91,7 @@ export function TripPlanner() {
   const [status, setStatus] = useState<"idle" | "loading" | "unexpected">(
     "idle",
   );
-  const [result, setResult] = useState<PlanResponse | null>(null);
+  const [result, setResult] = useState<PlanningResponse | null>(null);
   const [errorFocusRequest, setErrorFocusRequest] = useState(0);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -127,7 +135,9 @@ export function TripPlanner() {
     setResult(null);
     setStatus("loading");
     try {
-      const response = await createPlan(toApiRequest(values));
+      const response = values.coordinatorOptIn
+        ? await createCoordinatorPlan(toCoordinatorApiRequest(values))
+        : await createPlan(toApiRequest(values));
       setResult(response);
       setStatus("idle");
     } catch (error) {
@@ -485,6 +495,73 @@ export function TripPlanner() {
                   </div>
                   <FieldError field="interests" errors={errors} />
                 </fieldset>
+                <div className="experimentOption">
+                  <label className="experimentToggle">
+                    <input
+                      type="checkbox"
+                      checked={values.coordinatorOptIn}
+                      onChange={(event) =>
+                        update("coordinatorOptIn", event.target.checked)
+                      }
+                      aria-expanded={values.coordinatorOptIn}
+                      aria-controls="preference-notes-panel"
+                    />
+                    <span>
+                      <strong>Try coordinator-assisted experiment</strong>
+                      <small>
+                        Optional. The standard deterministic planner remains the
+                        default.
+                      </small>
+                    </span>
+                  </label>
+                  {values.coordinatorOptIn ? (
+                    <div
+                      className="preferencePanel"
+                      id="preference-notes-panel"
+                    >
+                      <div className="field">
+                        <label htmlFor="preferenceNotes">
+                          Extra preferences <span>(optional)</span>
+                        </label>
+                        <textarea
+                          id="preferenceNotes"
+                          rows={4}
+                          value={values.preferenceNotes}
+                          onChange={(event) =>
+                            update("preferenceNotes", event.target.value)
+                          }
+                          aria-invalid={Boolean(errors.preferenceNotes)}
+                          aria-describedby={describedBy(
+                            "preferenceNotes",
+                            errors,
+                            "preference-notes-hint preference-notes-scope preference-notes-count",
+                          )}
+                          placeholder="For example: Prefer quieter stays and varied daytime activities."
+                        />
+                        <p className="hint" id="preference-notes-hint">
+                          These notes only help rank already-valid proposals.
+                        </p>
+                        <p
+                          className="experimentScope"
+                          id="preference-notes-scope"
+                        >
+                          When a hosted model is configured, these notes may be
+                          sent to it. Do not include personal or sensitive
+                          information. Notes cannot request bookings, payments,
+                          multiple cities, visa advice, or live availability.
+                        </p>
+                        <p
+                          className="characterCount"
+                          id="preference-notes-count"
+                        >
+                          {preferenceNoteCodePointCount(values.preferenceNotes)}{" "}
+                          / 300 characters
+                        </p>
+                        <FieldError field="preferenceNotes" errors={errors} />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </section>
             </div>
 
@@ -539,6 +616,14 @@ export function TripPlanner() {
                     {values.interests.length
                       ? values.interests.map(humanize).join(", ")
                       : "None selected"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Planning approach</dt>
+                  <dd>
+                    {values.coordinatorOptIn
+                      ? "Coordinator-assisted experiment"
+                      : "Standard"}
                   </dd>
                 </div>
               </dl>

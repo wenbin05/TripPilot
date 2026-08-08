@@ -64,6 +64,10 @@ export interface TripPlanRequest {
   earliest_activity_time: string;
 }
 
+export interface CoordinatorPlanRequest extends TripPlanRequest {
+  preference_notes: string | null;
+}
+
 export interface NormalizedRequest {
   origin: string;
   destination: string;
@@ -189,6 +193,63 @@ export interface PlanningFailure extends ResponseBase {
 }
 
 export type PlanResponse = PlanningSuccess | PlanningFailure;
+
+export const INTERPRETED_PREFERENCE_TAGS = [
+  "lower_cost",
+  "larger_budget_buffer",
+  "fewer_activities",
+  "more_activities",
+  "shorter_transfers",
+  "activity_variety",
+  "daytime_focus",
+  "evening_focus",
+] as const;
+
+export const COORDINATOR_SELECTION_FACTS = [
+  "lowest_estimated_cost",
+  "largest_budget_buffer",
+  "fewest_activities",
+  "most_activities",
+  "greatest_activity_variety",
+  "shortest_transfer_time",
+  "greatest_interest_coverage",
+  "most_daytime_activities",
+  "most_evening_activities",
+] as const;
+
+export const COORDINATOR_FALLBACK_CODES = [
+  "MODEL_NOT_CONFIGURED",
+  "MODEL_TIMEOUT",
+  "MODEL_RATE_LIMITED",
+  "MODEL_PROVIDER_ERROR",
+  "MODEL_REFUSAL",
+  "MODEL_OUTPUT_INVALID",
+  "MODEL_ABSTAINED",
+  "UNKNOWN_CANDIDATE",
+  "CANDIDATE_REVALIDATION_FAILED",
+  "DEADLINE_RESERVE_REACHED",
+] as const;
+
+export type InterpretedPreferenceTag =
+  (typeof INTERPRETED_PREFERENCE_TAGS)[number];
+export type CoordinatorSelectionFact =
+  (typeof COORDINATOR_SELECTION_FACTS)[number];
+export type CoordinatorFallbackCode =
+  (typeof COORDINATOR_FALLBACK_CODES)[number];
+
+export interface CoordinatorExperiment {
+  contract_version: "coordinator-experiment-v1";
+  approach: "coordinator_assisted" | "deterministic_fallback";
+  interpreted_preference_tags: InterpretedPreferenceTag[];
+  selection_facts: CoordinatorSelectionFact[];
+  fallback_code: CoordinatorFallbackCode | null;
+}
+
+export type CoordinatorPlanResponse =
+  | (PlanningSuccess & { experiment: CoordinatorExperiment })
+  | (PlanningFailure & { experiment: CoordinatorExperiment });
+
+export type PlanningResponse = PlanResponse | CoordinatorPlanResponse;
 
 export interface RequestErrorDetail {
   location: Array<string | number>;

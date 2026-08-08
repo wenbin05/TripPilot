@@ -89,6 +89,12 @@ from internal context construction because those errors may quote rejected input
 Prompt injection is possible even in external travel descriptions. Provider data
 must never grant authority or override system and domain rules.
 
+The isolated coordinator endpoint does not echo preference notes or expose
+request-scoped candidate IDs. Its current no-adapter implementation performs no
+model egress and reports `MODEL_NOT_CONFIGURED` before returning the validated
+fixed-ranker fallback. The existing deterministic endpoint remains isolated and
+does not accept preference notes or experiment metadata.
+
 ## 6. Travel-specific safety and claims
 
 - Label prices, hours, routes, and availability as mock estimates.

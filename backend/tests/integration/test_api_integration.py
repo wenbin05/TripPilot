@@ -169,6 +169,64 @@ def test_identical_requests_have_stable_response_structure(client: TestClient) -
     assert first.json() == second.json()
 
 
+def test_coordinator_endpoint_returns_explicit_validated_fallback(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={
+            **request_body(end_date="2026-08-11"),
+            "preference_notes": "Prefer varied daytime activities",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert payload["validation_report"] == {"is_valid": True, "violations": []}
+    assert payload["planner_id"] == "trippilot-fixed-ranker-v1"
+    assert payload["experiment"]["contract_version"] == "coordinator-experiment-v1"
+    assert payload["experiment"]["approach"] == "deterministic_fallback"
+    assert payload["experiment"]["fallback_code"] == "MODEL_NOT_CONFIGURED"
+    assert payload["experiment"]["interpreted_preference_tags"] == []
+    assert set(payload["experiment"]["selection_facts"]) <= {
+        "lowest_estimated_cost",
+        "largest_budget_buffer",
+        "fewest_activities",
+        "most_activities",
+        "greatest_activity_variety",
+        "shortest_transfer_time",
+        "greatest_interest_coverage",
+        "most_daytime_activities",
+        "most_evening_activities",
+    }
+    assert "Prefer varied" not in response.text
+    assert "candidate_" not in response.text
+    assert any(
+        "extra preferences" in warning.casefold() for warning in payload["warnings"]
+    )
+
+
+def test_coordinator_planning_failure_has_no_model_fallback_claim(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={**request_body(budget=1), "preference_notes": None},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "planning_failure"
+    assert payload["experiment"] == {
+        "contract_version": "coordinator-experiment-v1",
+        "approach": "deterministic_fallback",
+        "interpreted_preference_tags": [],
+        "selection_facts": [],
+        "fallback_code": None,
+    }
+
+
 def test_provider_failure_is_sanitized_without_exception_details(
     client: TestClient,
 ) -> None:
