@@ -5,11 +5,12 @@ assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
 This repository contains the product and engineering foundation for the first
-MVP through Milestone 8: the deterministic domain core, validated mock
+MVP through Milestone 9: the deterministic domain core, validated mock
 travel-data provider, bounded deterministic planner, local FastAPI delivery
 layer, responsive Next.js planning interface, and a recorded passing
 deterministic acceptance baseline, plus internal validator-clean candidate
-enumeration. It intentionally contains no live provider, hosted-model runtime,
+enumeration, plus strict internal coordinator schemas and an SDK-neutral adapter
+protocol. It intentionally contains no live provider, hosted-model runtime,
 persistence, or booking functionality.
 
 ## First MVP
@@ -178,6 +179,7 @@ authentication, booking, or deployment configuration has been added.
 Milestone 7 defines the bounded product, UX, architecture, security, and
 evaluation contract for a future optional single-coordinator experiment.
 Milestone 8 implements only its deterministic candidate-enumeration prerequisite
-and proves eight frozen requests have pairwise material alternatives. The
-repository still contains no coordinator endpoint, hosted-model runtime, or API
-key.
+and proves eight frozen requests have pairwise material alternatives. Milestone
+9 adds strict internal context, summary, decision, retry, parsing, and adapter
+contracts without implementing an adapter. The repository still contains no
+coordinator endpoint, hosted-model runtime, or API key.

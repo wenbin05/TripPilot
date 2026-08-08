@@ -26,7 +26,12 @@ Every retained pair must satisfy both conditions:
      and 5% of the request budget, rounded up;
    - summed minimum local-transfer requirements differ by at least 15 minutes;
    - primary activity count differs by at least one; or
-   - the exact eight-interest activity-count vector differs.
+   - the exact eight-interest activity-count vector differs; or
+   - the exact morning/afternoon/evening activity-count vector differs.
+
+A daypart difference is material only after condition 1 has already established
+a changed primary-activity sequence; moving the same activities cosmetically
+does not qualify.
 
 The generator walks the existing stable bounded search order until the
 requested limit is reached or the search is exhausted. It validates every
@@ -55,10 +60,10 @@ cover:
 All eight requests must produce between two and five pairwise materially
 different candidates. The constrained two-traveller case uses a 35,000-minor-
 unit budget and retains proposals estimated at 33,800 minor units. Each case
-also freezes a SHA-256 digest of its ordered activity, cost, local-transfer, and
-interest-count metrics so a candidate-set change requires explicit review. The
-same suite proves stable repeated output,
-baseline selection parity, canonical record and location references, complete
+also freezes a SHA-256 digest of its ordered activity, cost, local-transfer,
+interest-count, and daypart-count metrics so a candidate-set change requires
+explicit review. The same suite proves stable repeated output, baseline
+selection parity, canonical record and location references, complete
 revalidation, exact category reconciliation, budget compliance, the five-item
 upper bound, strict limit handling, and preservation of structured failure when
 no candidate is possible.
@@ -68,11 +73,10 @@ This passes the minimum diversity prerequisite in
 `coordinator-eval-v1` manifest; that manifest also requires strict coordinator
 schemas, the preference-note boundary, a fixed ranker, and an adapter protocol.
 
-## 4. Deferred work
+## 4. Next work
 
-The next phase defines strict internal candidate-summary and coordinator
-schemas. It must derive the full server-authored metric vector, clarify whether
-daypart-only differences may qualify as material, and resolve the current
-`activity_variety` contract gap before hosted-model evaluation. Opaque candidate
-IDs remain request-scoped orchestration data and are intentionally not created
-by the enumerator.
+Strict internal candidate-summary, coordinator-context, decision, retry, and
+adapter contracts are now defined. The next phase builds summaries from
+canonical candidates, assigns opaque request-scoped IDs in orchestration, and
+adds an isolated experimental API and explicit frontend opt-in. The enumerator
+still intentionally does not create those IDs.

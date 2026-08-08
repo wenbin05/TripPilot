@@ -6,6 +6,7 @@ import socket
 from datetime import date, time
 from itertools import combinations
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -116,6 +117,18 @@ def transfer_minutes(candidate: CanonicalCandidate) -> int:
     return sum(value.minimum_minutes for value in snapshot.transfer_requirements)
 
 
+def daypart_counts(
+    candidate: CanonicalCandidate, trip: TripRequest
+) -> tuple[int, int, int]:
+    counts = [0, 0, 0]
+    for item in candidate.itinerary.scheduled_items:
+        if item.kind is not ItemKind.ACTIVITY:
+            continue
+        hour = item.window.start.astimezone(ZoneInfo(trip.destination_timezone)).hour
+        counts[0 if hour < 12 else 1 if hour < 18 else 2] += 1
+    return (counts[0], counts[1], counts[2])
+
+
 def assert_pairwise_materiality(
     trip: TripRequest,
     result: CandidateSet,
@@ -133,16 +146,18 @@ def assert_pairwise_materiality(
             or abs(transfer_minutes(left) - transfer_minutes(right)) >= 15
             or len(activity_signature(left)) != len(activity_signature(right))
             or interest_counts(left, provider) != interest_counts(right, provider)
+            or daypart_counts(left, trip) != daypart_counts(right, trip)
         )
 
 
 def candidate_metric_digest(
-    result: CandidateSet, provider: JsonMockTravelDataProvider
+    trip: TripRequest, result: CandidateSet, provider: JsonMockTravelDataProvider
 ) -> str:
     payload = [
         {
             "activities": activity_signature(candidate),
             "cost": candidate.itinerary.total_estimated_cost.amount_minor,
+            "dayparts": daypart_counts(candidate, trip),
             "interest_counts": interest_counts(candidate, provider),
             "transfer": transfer_minutes(candidate),
         }
@@ -257,14 +272,14 @@ FROZEN_DIVERSITY_CASES = (
 )
 
 FROZEN_DIVERSITY_DIGESTS = (
-    "608a3fd26e94b3dfbb3ff7bfc81f52c68cb89579592a0b21a35b6122142364b7",
-    "13f8fb66a50d9e8ca0e71b2371ceace416a6985ae832850e527d84efde946eca",
-    "9b05b75d4067c92dfe680128a7caa6eafe2ccb86d01731530fdf9eefeb39a1c6",
-    "93107201e2547343833eb9d19bcf0b07a290813dedc4541f07e7c291aeb7a28d",
-    "8ae06fd0a48d416c443dda27d8da2f0dd120b4dc6f800608464dd54cc1eade29",
-    "33b11a5705e7dc1a5b2fca34d79dddd941a5124dbd13fd64d9ba1dbb51e2c221",
-    "9163b7b09be690ceeb9cc1d1c903ae8141804a6dcfade3a4838612445804e2af",
-    "53debe0db8074f124ce23ec8d7e5bf24446de6373bcc2faa56058eb2ae6245b6",
+    "186a3449cac15ff2bbf9d428518389a445300b28ee4da39e77569ad7376c5457",
+    "242206e50a8ff3d4de662d8379ce99d8afb6a4ec6aff70c0ec6602ecccb1f892",
+    "5cf5e3b975943217ef07f28e98001f9419a27d08f23a4507e69780b1431c9185",
+    "73dfa312c8610088120f8f7ede839417450955a4de22cef54d6dc2a60608b0c6",
+    "56a7fad26103ce1bbb56622b7e61bfd2927c693b1a0b06cc7fbdc2914ef71bfe",
+    "cd7717334e19412e17c9acc7ae0d92d3187781784ea4614d741e9f710004900e",
+    "1ad84c4c19a99296b3883ad4d2909ad8047a297dd0cca4718f6566ffa51c2c37",
+    "5968425199209f0fc2d27b0c4a27183d0a6fd6c5fb88c50ec758c507edb1f317",
 )
 
 
@@ -286,7 +301,7 @@ def test_frozen_request_meets_candidate_diversity_prerequisite(
     assert isinstance(standard, PlanningSuccess)
     assert result.candidates[0].itinerary == standard.itinerary
     assert_pairwise_materiality(trip, result, provider)
-    assert candidate_metric_digest(result, provider) == expected_digest
+    assert candidate_metric_digest(trip, result, provider) == expected_digest
     for candidate in result.candidates:
         assert validate_itinerary(
             trip, candidate.itinerary, candidate.provider_snapshot

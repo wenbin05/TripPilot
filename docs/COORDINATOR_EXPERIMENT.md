@@ -38,8 +38,9 @@ When the current deterministic planner succeeds, its itinerary is included in
 the candidate set. Its structured failure remains only a regression reference
 when it does not succeed. Candidates are materially different only when their
 primary activity set or ordering differs and there is at least one measurable cost,
-transfer, pace, or interest-coverage trade-off; cosmetic differences do not
-qualify. The experiment is meaningful only if at least eight frozen evaluation
+transfer, pace, interest-coverage, or daypart-allocation trade-off; a daypart
+difference alone never qualifies, and cosmetic differences do not qualify. The
+experiment is meaningful only if at least eight frozen evaluation
 requests produce two or more materially different, validator-clean candidates.
 If the candidate generator cannot meet that prerequisite, implementation pauses
 and candidate diversity is addressed deterministically first.
@@ -48,8 +49,9 @@ and candidate diversity is addressed deterministically first.
 
 `preference_notes` is an optional string of at most 300 Unicode code points
 after normalization. Normalize to NFC, replace CR, LF, and TAB with spaces,
-collapse repeated whitespace, and trim once at ingress. Then reject U+0000–001F,
-U+007F–009F, U+061C, U+200E–200F, U+202A–202E, and U+2066–2069. Whitespace-only
+then reject remaining U+0000–001F, U+007F–009F, unpaired surrogate code points
+U+D800–DFFF, U+061C, U+200E–200F, U+202A–202E, and U+2066–2069 before collapsing
+repeated allowed whitespace and trimming once at ingress. Whitespace-only
 input is omitted; over-limit input is rejected rather than truncated. Frontend
 validation and its counter use `Array.from(normalizedValue).length`; the backend
 remains authoritative. Browser `maxlength` is only assistance because it counts
@@ -141,18 +143,25 @@ CandidateSummary
   total_estimated_cost_minor: integer 0..9223372036854775807
   remaining_budget_minor: integer 0..9223372036854775807
   primary_activity_count: integer 0..16
+  distinct_primary_activity_count: integer 0..16
   total_transfer_minutes: integer 0..5760
   activity_interest_counts: exact map of the eight Interest enums to 0..16
+  requested_interest_coverage_count: integer 0..8
   daypart_activity_counts: exact map morning/afternoon/evening to 0..16
   accommodation_style_tags: 0..2 values from quiet, social
-  transport_mode_tags: 0..2 values from coach, train
+  transport_mode_tags: 1..2 values from coach, train
 ```
 
 All values are derived from canonical records by deterministic code. Candidate
 IDs are opaque, request-scoped, and rejected before lookup if they contain
 Unicode, homoglyphs, or fail the pattern. Dayparts use destination-local activity
 start times: morning `[00:00, 12:00)`, afternoon `[12:00, 18:00)`, and evening
-`[18:00, 24:00)`.
+`[18:00, 24:00)`. `distinct_primary_activity_count` counts unique canonical
+activity source IDs, so a repeated visit counts once; user-facing copy calls
+this "most distinct activities." `requested_interest_coverage_count` counts
+unique structured requested interests whose exact activity count is greater
+than zero; unrequested interests do not count. Daypart counts sum to
+`primary_activity_count`, and the distinct count cannot exceed it.
 
 The future model boundary uses a strict schema equivalent to:
 
@@ -182,12 +191,14 @@ they never assert facts about the selected candidate.
 
 User-visible selection facts are computed by the server from the canonical
 candidate set. `lowest_estimated_cost`, `largest_budget_buffer`,
-`fewest_activities`, `most_activities`, `shortest_transfer_time`, and
-`greatest_interest_coverage` are emitted only when the selected value equals the
-set optimum and differs from at least one alternative. Daypart facts are emitted
-only from canonical daypart counts. Trade-off templates compare exact canonical
-metrics. Unsupported or unverifiable facts are omitted, and no tag may use the
-word “availability.”
+`fewest_activities`, `most_activities`, `greatest_activity_variety`,
+`shortest_transfer_time`, and `greatest_interest_coverage` are emitted only when
+the selected value equals the set optimum and differs from at least one
+alternative. `most_daytime_activities` and `most_evening_activities` are emitted
+under the same strict-optimum rule from canonical daypart counts, with user copy
+"More daytime activities" and "More evening activities." Trade-off templates
+compare exact canonical metrics. Unsupported or unverifiable facts are omitted,
+and no tag may use the word “availability.”
 
 Strict structured output improves parsing reliability but does not establish
 domain validity. Canonical lookup and deterministic validation remain mandatory.
@@ -355,7 +366,10 @@ justify a cluttered interface or reduced comprehension.
 1. **Complete:** add deterministic candidate enumeration and prove the diversity
    prerequisite. The evidence and frozen materiality rule are recorded in
    `docs/CANDIDATE_DIVERSITY.md`.
-2. Add strict internal coordinator schemas and adapter protocol without an SDK.
+2. **Complete:** add strict internal coordinator schemas, control-safe note
+   normalization, bounded raw-output parsing, request-context decision checks,
+   and an SDK-neutral adapter protocol. No adapter implementation or model call
+   is included.
 3. Add the isolated experimental API contract and frontend opt-in.
 4. Add one hosted-model adapter, server-side configuration, safe metadata, and
    deterministic fallback.

@@ -196,11 +196,23 @@ Milestone 8 adds an internal service-only candidate enumerator. It walks the
 same stable, bounded transport/accommodation, pace-profile, and agenda-ranking
 order as the standard planner; candidate zero therefore remains the existing
 `/plan` selection. Alternatives are admitted only when the primary-activity
-sequence differs and a deterministic cost, local-transfer, activity-count, or
-interest-count trade-off crosses the frozen materiality rule. Every retained
+sequence differs and a deterministic cost, local-transfer, activity-count,
+interest-count, or daypart-count trade-off crosses the frozen materiality rule.
+Every retained
 candidate is budget-checked and revalidated against its own canonical provider
 snapshot. The generator returns one candidate when only one qualifies and never
 pads the set. No public API or frontend contract changes in this milestone.
+
+Milestone 9 adds an internal coordinator boundary under `services/`: frozen,
+extra-forbid Pydantic schemas for candidate summaries, contexts, decisions, and
+retry feedback; control-safe preference-note normalization; a bounded raw JSON
+decision parser with duplicate-key and non-finite-number rejection; and a
+synchronous SDK-neutral adapter protocol with an absolute monotonic deadline.
+Decision IDs and prioritized interests are checked against the originating
+context. Raw-output parsing and adapter failures expose stable typed codes rather
+than raw model or validation content; direct internal schema errors are never a
+public or logging boundary. This milestone provides no adapter implementation,
+model call, public route, API-key configuration, or frontend behavior.
 
 ## 10. API delivery layer
 

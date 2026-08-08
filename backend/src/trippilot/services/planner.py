@@ -124,6 +124,7 @@ class _Candidate:
     snapshot: ProviderSnapshot
     matched_interests: tuple[Interest, ...]
     interest_counts: tuple[int, ...]
+    daypart_counts: tuple[int, int, int]
 
 
 def _activity_signature(candidate: _Candidate) -> tuple[str, ...]:
@@ -136,7 +137,7 @@ def _activity_signature(candidate: _Candidate) -> tuple[str, ...]:
 
 def _tradeoff_signature(
     candidate: _Candidate,
-) -> tuple[int, int, int, tuple[int, ...]]:
+) -> tuple[int, int, int, tuple[int, ...], tuple[int, int, int]]:
     return (
         candidate.itinerary.total_estimated_cost.amount_minor,
         sum(
@@ -145,6 +146,7 @@ def _tradeoff_signature(
         ),
         len(_activity_signature(candidate)),
         candidate.interest_counts,
+        candidate.daypart_counts,
     )
 
 
@@ -167,6 +169,7 @@ def _is_materially_different(
         or abs(candidate_tradeoffs[1] - existing_tradeoffs[1]) >= 15
         or candidate_tradeoffs[2] != existing_tradeoffs[2]
         or candidate_tradeoffs[3] != existing_tradeoffs[3]
+        or candidate_tradeoffs[4] != existing_tradeoffs[4]
     )
 
 
@@ -711,6 +714,12 @@ def _candidate(
         total_estimated_cost=Money(sum(amounts.values()), currency),
     )
     snapshot = _provider_snapshot(provider, itinerary, request, graph)
+    daypart_counts = [0, 0, 0]
+    for item in scheduled_tuple:
+        if item.kind is not ItemKind.ACTIVITY:
+            continue
+        hour = item.window.start.astimezone(zone).hour
+        daypart_counts[0 if hour < 12 else 1 if hour < 18 else 2] += 1
     return _Candidate(
         itinerary=itinerary,
         snapshot=snapshot,
@@ -719,6 +728,11 @@ def _candidate(
         ),
         interest_counts=tuple(
             activity_interest_counts[interest] for interest in Interest
+        ),
+        daypart_counts=(
+            daypart_counts[0],
+            daypart_counts[1],
+            daypart_counts[2],
         ),
     )
 

@@ -130,6 +130,10 @@ Each evaluation run records:
 - Strict-output coercion, extra fields, oversized arrays/prose, refusals,
   truncation, timeouts, provider errors, and missing model configuration.
 - Canary preference data appearing in logs, traces, errors, or metadata.
+- Preference-note control and bidirectional characters, normalization-boundary
+  lengths, duplicate JSON keys, non-finite numbers, trailing JSON values,
+  oversized raw decisions, missing explicit nulls, and context-invalid IDs or
+  prioritized interests.
 
 ## 6. Manual review rubric
 

@@ -198,10 +198,12 @@ For a fixed evaluation set:
 The deterministic core, FastAPI endpoint, and Next.js client are complete.
 Internal deterministic candidate enumeration now returns one to five canonical,
 validator-clean proposals without changing the standard endpoint, and eight
-frozen structured requests meet the two-candidate diversity prerequisite. The
-next bounded experiment phase defines strict internal coordinator schemas and
-an adapter protocol before model integration. The eventual optional coordinator
-ranks two to five candidates using soft preferences.
+frozen structured requests meet the two-candidate diversity prerequisite.
+Strict internal coordinator schemas, bounded normalization and parsing, and an
+SDK-neutral adapter protocol are also defined without any model integration.
+The next bounded phase adds canonical summary construction, request-scoped IDs,
+and an isolated opt-in API and frontend contract. The eventual optional
+coordinator ranks two to five candidates using soft preferences.
 It does not generate authoritative itinerary facts and is retained only if the
 gates in `docs/COORDINATOR_EXPERIMENT.md` pass. Persistence, selected live
 providers, containerization, and deployment remain later changes requiring
