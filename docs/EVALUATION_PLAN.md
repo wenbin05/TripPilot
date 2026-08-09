@@ -106,6 +106,13 @@ checkpoint after each run. A resumed run rejects unknown, duplicate, mismatched,
 or cross-revision records before making another model call. The checkpoint is
 stored under the ignored local `tmp/` tree rather than committed.
 
+The completed V1 result and no-go decision are recorded in
+`docs/COORDINATOR_EVALUATION_RESULT_V1.md`. V1 also demonstrated that summing
+provider metadata cannot represent end-to-end latency or complete estimated cost
+when an attempt times out without returning usage. A future version must measure
+elapsed time independently and expose cost completeness before operational gates
+can be evaluated.
+
 ## 3. Metrics and gates
 
 ### Required release gates

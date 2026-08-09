@@ -381,11 +381,12 @@ justify a cluttered interface or reduced comprehension.
    deadline with a two-second reserve, one allowlisted repair attempt, canonical
    revalidation, stable failure metadata, and deterministic fallback. The
    experiment remains disabled when configuration is absent.
-5. **In progress:** the 26-case executable manifest, offline candidate-drift
-   validation, three-arm run schema, bounded repair accounting, and sanitized
-   model/token/latency/cost records are complete. Run the 100 hosted generations,
-   blinded review, and go/no-go analysis before enabling the experiment by
-   default anywhere.
+5. **V1 complete; no-go:** the 26-case executable manifest and 100 hosted runs
+   are complete. Reliability and preference availability missed their frozen
+   gates, and timeout attempts exposed an end-to-end latency/cost-completeness
+   measurement gap. The deterministic planner remains the product path. See
+   `docs/COORDINATOR_EVALUATION_RESULT_V1.md` before proposing a versioned V2;
+   do not enable the experiment by default.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent
