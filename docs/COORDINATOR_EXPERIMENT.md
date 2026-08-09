@@ -390,11 +390,18 @@ justify a cluttered interface or reduced comprehension.
    measurement gap. The deterministic planner remains the product path. See
    `docs/COORDINATOR_EVALUATION_RESULT_V1.md` before proposing a versioned V2;
    do not enable the experiment by default.
-6. **V2 prepared; not executed:** preserve the frozen case schedule, use prompt
+6. **V2 complete; quality no-go:** preserve the frozen case schedule, use prompt
    `trippilot-coordinator-prompt-v2`, set Terra reasoning effort to `none`, make
    candidate order the final tie-breaker after ignoring unsupported soft
    preferences, and record full coordinator elapsed time plus explicit cost
-   completeness. V2 requires separate approval before paid execution.
+   completeness. All operational gates passed across 100 hosted runs, but only
+   20 of 40 preference selections differed from the control, making the required
+   24 reviewer wins impossible. See
+   `docs/COORDINATOR_EVALUATION_RESULT_V2.md`; do not enable the experiment.
+7. **Proposed, not approved:** isolate ranking quality by retaining prompt V2 and
+   the V2 observability contract while restoring Terra reasoning effort `low`
+   under a V3 manifest. Run only a narrow conflicting/shorter-transfer diagnostic
+   before considering another full paid batch.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent

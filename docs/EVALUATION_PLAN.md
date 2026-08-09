@@ -121,6 +121,13 @@ the final selection or fallback, regardless of provider metadata availability.
 metadata. Provider-derived token and cost totals remain estimates and are never
 treated as complete when that flag is false.
 
+The completed V2 result is recorded in
+`docs/COORDINATOR_EVALUATION_RESULT_V2.md`. V2 passed every operational gate but
+is a quality no-go: 20 of 40 preference selections were identical to the fixed-
+ranker control, so it cannot reach the frozen threshold of 24 reviewer wins.
+Blinded scoring is deferred for V2. A future version must retain the frozen gate
+and demonstrate a selection mix capable of passing before reviewer scoring.
+
 ## 3. Metrics and gates
 
 ### Required release gates
