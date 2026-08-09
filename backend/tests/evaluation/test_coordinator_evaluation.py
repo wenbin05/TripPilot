@@ -12,7 +12,9 @@ from trippilot.evaluation import (
     EvaluationCaseBehavior,
     EvaluationRunOutcome,
     load_coordinator_evaluation_manifest,
+    load_evaluation_run_records,
     run_evaluation_case,
+    run_live_evaluation_batch,
     validate_evaluation_manifest,
 )
 from trippilot.providers import JsonMockTravelDataProvider
@@ -70,6 +72,37 @@ class SelectingAdapter:
                 estimated_cost_micro_usd=900,
             ),
         )
+
+
+class CountingSelectingAdapter(SelectingAdapter):
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        self.call_count += 1
+        return super().decide(
+            context,
+            deadline_monotonic=deadline_monotonic,
+            retry_feedback=retry_feedback,
+        )
+
+
+class FailIfCalledAdapter:
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        del context, deadline_monotonic, retry_feedback
+        raise AssertionError("a complete checkpoint must not call the adapter")
 
 
 class RepairingAdapter:
@@ -275,4 +308,71 @@ def test_runner_stops_cases_that_must_not_call_a_model(
             SelectingAdapter(),
             code_revision="ae32ef9",
             run_number=1,
+        )
+
+
+def test_live_batch_checkpoints_all_runs_and_resumes_without_model_calls(
+    manifest: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "sanitized-runs.json"
+    adapter = CountingSelectingAdapter()
+
+    summary = run_live_evaluation_batch(
+        manifest,
+        provider,
+        adapter,
+        code_revision="abcdef1",
+        output_path=output,
+    )
+
+    assert summary.expected_run_count == 100
+    assert summary.completed_run_count == 100
+    assert summary.coordinator_selection_count == 100
+    assert summary.first_attempt_selection_count == 100
+    assert adapter.call_count == 100
+    records = load_evaluation_run_records(output)
+    assert len(records) == 100
+    assert len({(record.scenario_id, record.run_number) for record in records}) == 100
+    serialized = output.read_text("utf-8")
+    assert "preference_notes" not in serialized
+    assert "provider_snapshot" not in serialized
+    assert "proposed_itinerary" not in serialized
+
+    resumed = run_live_evaluation_batch(
+        manifest,
+        provider,
+        FailIfCalledAdapter(),
+        code_revision="abcdef1",
+        output_path=output,
+    )
+
+    assert resumed == summary
+
+
+def test_live_batch_rejects_a_checkpoint_from_another_revision(
+    manifest: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "sanitized-runs.json"
+    record = run_evaluation_case(
+        manifest,
+        "baseline-one-day",
+        provider,
+        SelectingAdapter(),
+        code_revision="abcdef1",
+        run_number=1,
+        monotonic=lambda: 100.0,
+    )
+    output.write_text(f"[{record.model_dump_json()}]", "utf-8")
+
+    with pytest.raises(ValueError, match="does not match the frozen run"):
+        run_live_evaluation_batch(
+            manifest,
+            provider,
+            FailIfCalledAdapter(),
+            code_revision="abcdef2",
+            output_path=output,
         )

@@ -100,6 +100,12 @@ model per metadata-bearing attempt, aggregate token counts, latency, and
 estimated cost; they omit notes, prompts,
 provider/model payloads, and itinerary bodies.
 
+The live runner requires an explicit paid-API acknowledgement and code revision,
+validates the frozen manifest before model egress, and writes an atomic sanitized
+checkpoint after each run. A resumed run rejects unknown, duplicate, mismatched,
+or cross-revision records before making another model call. The checkpoint is
+stored under the ignored local `tmp/` tree rather than committed.
+
 ## 3. Metrics and gates
 
 ### Required release gates

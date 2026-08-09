@@ -199,3 +199,21 @@ python -m trippilot.evaluation
 
 This checks all 26 synthetic cases and the 100-run live-evaluation schedule; it
 does not contact a hosted model.
+
+The paid 100-run evaluation is a separate, explicit operation. It requires the
+server-side key in the process environment, a clean Git revision, a local
+checkpoint path, and the billing acknowledgement flag:
+
+```bash
+cd backend
+set -a
+source .env
+set +a
+python -m trippilot.evaluation \
+  --live-output ../tmp/evaluation/coordinator-live.json \
+  --code-revision <clean-git-revision> \
+  --acknowledge-paid-api
+```
+
+The ignored checkpoint is atomically replaced after every completed run and can
+be resumed with the same command. It contains only strict sanitized run records.
