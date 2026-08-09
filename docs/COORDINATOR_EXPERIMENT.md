@@ -399,7 +399,10 @@ evaluation model because this is a small structured ranking decision. The model,
 8,192-byte context, 16,000-byte request, and 400-output-token ceilings form the
 server-side spend boundary under the pricing checked for this milestone; pricing
 must be rechecked before every live evaluation rather than treated as an API or
-price guarantee. The relevant official guidance is the
+price guarantee. The pre-smoke check on 2026-08-09 found official GPT-5.6 Terra
+pricing of US$2.00 per million input tokens and US$12.00 per million output
+tokens. The relevant official guidance is the
+[GPT-5.6 Terra model page](https://developers.openai.com/api/docs/models/gpt-5.6-terra),
 [latest model guide](https://developers.openai.com/api/docs/guides/latest-model),
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
 [function calling](https://developers.openai.com/api/docs/guides/function-calling),

@@ -115,7 +115,7 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert result.metadata.returned_model == "gpt-5.6-terra-2026-08-01"
     assert result.metadata.input_tokens == 120
     assert result.metadata.output_tokens == 40
-    assert result.metadata.estimated_cost_micro_usd == 900
+    assert result.metadata.estimated_cost_micro_usd == 720
     assert captured["url"] == OPENAI_RESPONSES_URL
     assert captured["timeout"] == 5.0
     payload = json.loads(captured["body"])  # type: ignore[arg-type]
@@ -267,7 +267,7 @@ def test_incomplete_response_retains_usage_and_fails_closed() -> None:
     assert isinstance(result, CoordinatorAdapterFailure)
     assert result.code is CoordinatorAdapterFailureCode.OUTPUT_INVALID
     assert result.metadata is not None
-    assert result.metadata.estimated_cost_micro_usd == 900
+    assert result.metadata.estimated_cost_micro_usd == 720
 
 
 def test_configuration_rejects_silent_model_substitution() -> None:
