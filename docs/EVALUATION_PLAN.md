@@ -69,6 +69,13 @@ deterministically, compare it with the baseline on the same cases, and record
 invalid-output, repair, fallback, token, cost, and latency rates. Never use LLM
 self-grading as the source of truth for hard constraints.
 
+The V3 diagnostic is complete and recorded in
+`docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`. All ten runs were valid first-
+attempt selections, but the conflicting-preference case selected the control in
+all five runs. The tested selection mix did not supply the four additional
+potential wins needed to justify a full V3 evaluation, so no full batch or
+blinded review is authorized.
+
 ### Candidate-diversity prerequisite
 
 The internal deterministic enumerator is gated by the eight frozen normalized

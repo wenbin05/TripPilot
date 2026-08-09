@@ -161,6 +161,7 @@ rejects wildcard configuration.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Candidate diversity evidence](docs/CANDIDATE_DIVERSITY.md)
 - [Single coordinator experiment contract](docs/COORDINATOR_EXPERIMENT.md)
+- [Coordinator V3 diagnostic result](docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Product and UX benchmark](docs/PRODUCT_UX_BENCHMARK.md)
 - [Security](docs/SECURITY.md)
@@ -222,3 +223,9 @@ python -m trippilot.evaluation \
 The ignored checkpoint is atomically replaced after every completed run and can
 be resumed with the same command. It contains only strict sanitized run records.
 A full 100-run V3 evaluation requires separate approval.
+
+The ten-run V3 diagnostic is now complete. It passed all operational measures
+and selected the strict minimum-transfer candidate in five of five runs, but the
+conflicting-preference case selected the deterministic control in five of five
+runs. The result does not justify a full paid V3 batch; see
+`docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`.

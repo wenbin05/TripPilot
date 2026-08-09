@@ -400,12 +400,14 @@ justify a cluttered interface or reduced comprehension.
    20 of 40 preference selections differed from the control, making the required
    24 reviewer wins impossible. See
    `docs/COORDINATOR_EVALUATION_RESULT_V2.md`; do not enable the experiment.
-7. **Diagnostic approved and prepared:** isolate ranking quality by retaining
+7. **V3 diagnostic complete; no full-batch approval:** isolate ranking quality by retaining
    Prompt V2 and the V2 observability contract while restoring Terra reasoning
-   effort `low` under a V3 manifest. The paid diagnostic is limited to five runs
-   each of `preference-conflicting` and `preference-shorter-transfers`, with an
-   atomic resumable checkpoint. A full 100-run V3 batch requires separate
-   approval after this evidence is reviewed.
+   effort `low` under a V3 manifest. Ten first-attempt selections passed every
+   operational measure. The shorter-transfer case selected its strict optimum
+   in all five runs, but the conflicting case selected the fixed-ranker control
+   in all five and supplied none of the four additional potential wins sought by
+   the diagnostic. See `docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`; do not run
+   a full V3 batch.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent
