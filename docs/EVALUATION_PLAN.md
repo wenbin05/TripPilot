@@ -52,11 +52,15 @@ The initial suite should include:
 
 ### Coordinator evaluation
 
-The completed coordinator V1 is preserved at
-`data/evaluation/coordinator-eval-v1.json`; the registered, not-yet-executed V2
-is at `data/evaluation/coordinator-eval-v2.json`. V2 preserves all cases and
-candidate digests while versioning the prompt, reasoning setting, and
-observability fields. Freeze an immutable model snapshot where available and
+The completed coordinator V1 and V2 protocols are preserved at
+`data/evaluation/coordinator-eval-v1.json` and
+`data/evaluation/coordinator-eval-v2.json`. V2 passed its operational gates but
+could not reach the frozen reviewer-win gate. The registered V3 diagnostic at
+`data/evaluation/coordinator-eval-v3.json` preserves all cases and candidate
+digests, retains Prompt V2 and V2 observability, and restores Terra reasoning
+effort to `low`. Its approved paid scope is exactly five runs each of
+`preference-conflicting` and `preference-shorter-transfers`; it is not approval
+for a full 100-run V3 batch. Freeze an immutable model snapshot where available and
 always record the returned model for each metadata-bearing attempt,
 prompt/contract version, fixture snapshot, candidate set, and generation
 parameters. Hosted generations are assessed across repeated runs rather than

@@ -121,7 +121,7 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert captured["timeout"] == 5.0
     payload = json.loads(captured["body"])  # type: ignore[arg-type]
     assert payload["model"] == COORDINATOR_MODEL
-    assert payload["reasoning"] == {"effort": "none"}
+    assert payload["reasoning"] == {"effort": "low"}
     assert payload["max_output_tokens"] == MAX_OUTPUT_TOKENS
     assert payload["store"] is False
     assert payload["tools"] == []

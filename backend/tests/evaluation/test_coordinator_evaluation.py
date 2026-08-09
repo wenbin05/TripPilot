@@ -33,6 +33,7 @@ from trippilot.services import (
 REPOSITORY_ROOT = Path(__file__).parents[3]
 MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v1.json"
 V2_MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v2.json"
+V3_MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v3.json"
 FIXTURE_PATH = REPOSITORY_ROOT / "data/mock/kingston-toronto-v1.json"
 
 
@@ -44,6 +45,11 @@ def manifest() -> CoordinatorEvaluationManifest:
 @pytest.fixture(scope="module")
 def manifest_v2() -> CoordinatorEvaluationManifest:
     return load_coordinator_evaluation_manifest(V2_MANIFEST_PATH)
+
+
+@pytest.fixture(scope="module")
+def manifest_v3() -> CoordinatorEvaluationManifest:
+    return load_coordinator_evaluation_manifest(V3_MANIFEST_PATH)
 
 
 @pytest.fixture(scope="module")
@@ -263,6 +269,22 @@ def test_v2_manifest_rejects_a_mismatched_reasoning_configuration() -> None:
 
     with pytest.raises(ValidationError, match="configuration is inconsistent"):
         CoordinatorEvaluationManifest.model_validate_json(json.dumps(payload))
+
+
+def test_v3_manifest_restores_low_reasoning_without_changing_cases(
+    manifest_v2: CoordinatorEvaluationManifest,
+    manifest_v3: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+) -> None:
+    assert manifest_v3.contract_version == "coordinator-eval-v3"
+    assert manifest_v3.prompt_id == "trippilot-coordinator-prompt-v2"
+    assert manifest_v3.reasoning_effort == "low"
+    assert manifest_v3.request_profiles == manifest_v2.request_profiles
+    assert manifest_v3.cases == manifest_v2.cases
+    assert (
+        validate_evaluation_manifest(manifest_v3, provider).contract_version
+        == "coordinator-eval-validation-v2"
+    )
 
 
 def test_manifest_validates_offline_against_frozen_candidates(
@@ -512,4 +534,79 @@ def test_live_batch_rejects_a_checkpoint_from_another_revision(
             FailIfCalledAdapter(),
             code_revision="abcdef2",
             output_path=output,
+        )
+
+
+def test_v3_filtered_live_batch_runs_exact_scenarios_and_resumes(
+    manifest_v3: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "sanitized-v3-diagnostic.json"
+    adapter = CountingV2SelectingAdapter()
+    scenarios = ("preference-conflicting", "preference-shorter-transfers")
+
+    summary = run_live_evaluation_batch(
+        manifest_v3,
+        provider,
+        adapter,
+        code_revision="abcdef3",
+        output_path=output,
+        scenario_ids=scenarios,
+    )
+
+    assert summary.contract_version == "coordinator-eval-batch-v2"
+    assert summary.expected_run_count == 10
+    assert summary.completed_run_count == 10
+    assert summary.cost_complete_run_count == 10
+    assert adapter.call_count == 10
+    records = load_evaluation_run_records(output)
+    assert tuple(dict.fromkeys(record.scenario_id for record in records)) == (
+        "preference-shorter-transfers",
+        "preference-conflicting",
+    )
+    assert all(
+        record.contract_version == "coordinator-eval-run-v2" for record in records
+    )
+    assert {(record.scenario_id, record.run_number) for record in records} == {
+        (scenario_id, run_number)
+        for scenario_id in scenarios
+        for run_number in range(1, 6)
+    }
+
+    resumed = run_live_evaluation_batch(
+        manifest_v3,
+        provider,
+        FailIfCalledAdapter(),
+        code_revision="abcdef3",
+        output_path=output,
+        scenario_ids=scenarios,
+    )
+
+    assert resumed == summary
+
+
+@pytest.mark.parametrize(
+    "scenario_ids",
+    [
+        (),
+        ("preference-conflicting", "preference-conflicting"),
+        ("not-a-frozen-scenario",),
+        ("schema-notes-over-limit",),
+    ],
+)
+def test_filtered_live_batch_rejects_invalid_scenario_filters(
+    manifest_v3: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+    tmp_path: Path,
+    scenario_ids: tuple[str, ...],
+) -> None:
+    with pytest.raises(ValueError, match="scenario filter"):
+        run_live_evaluation_batch(
+            manifest_v3,
+            provider,
+            FailIfCalledAdapter(),
+            code_revision="abcdef3",
+            output_path=tmp_path / "must-not-run.json",
+            scenario_ids=scenario_ids,
         )

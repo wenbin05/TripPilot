@@ -190,21 +190,21 @@ configuration. Without it, the endpoint reports `MODEL_NOT_CONFIGURED` and
 returns the validated deterministic fallback. API keys remain server-side and
 are never committed.
 
-The current frozen coordinator V2 manifest can be validated without an API key
+The current frozen coordinator V3 diagnostic manifest can be validated without an API key
 or network egress from `backend/`:
 
 ```bash
 python -m trippilot.evaluation
 ```
 
-This checks all 26 synthetic cases and the 100-run live-evaluation schedule; it
-does not contact a hosted model. V2 preserves the V1 cases and candidate digests
-while versioning the prompt, reasoning setting, elapsed-time measurement, and
-cost-completeness record after the documented V1 no-go.
+This checks all 26 synthetic cases and the complete 100-run schedule; it does
+not contact a hosted model. V3 preserves the V2 prompt, cases, candidate digests,
+elapsed-time measurement, and cost-completeness contract while restoring Terra
+reasoning effort to `low` for a narrow ranking-quality diagnostic.
 
-The paid 100-run evaluation is a separate, explicit operation. It requires the
-server-side key in the process environment, a clean Git revision, a local
-checkpoint path, and the billing acknowledgement flag:
+The approved paid V3 diagnostic is limited to two named scenarios and ten total
+runs. It requires the server-side key in the process environment, a clean Git
+revision, a local checkpoint path, and the billing acknowledgement flag:
 
 ```bash
 cd backend
@@ -212,10 +212,13 @@ set -a
 source .env
 set +a
 python -m trippilot.evaluation \
-  --live-output ../tmp/evaluation/coordinator-live.json \
+  --live-output ../tmp/evaluation/coordinator-v3-diagnostic.json \
   --code-revision <clean-git-revision> \
-  --acknowledge-paid-api
+  --acknowledge-paid-api \
+  --scenario preference-conflicting \
+  --scenario preference-shorter-transfers
 ```
 
 The ignored checkpoint is atomically replaced after every completed run and can
 be resumed with the same command. It contains only strict sanitized run records.
+A full 100-run V3 evaluation requires separate approval.

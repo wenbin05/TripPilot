@@ -57,15 +57,16 @@ def run_live_evaluation_batch(
     *,
     code_revision: str,
     output_path: str | Path,
+    scenario_ids: tuple[str, ...] | None = None,
     on_record: RunProgress | None = None,
 ) -> EvaluationBatchSummary:
-    """Run or resume all frozen model cases with an atomic checkpoint per run."""
+    """Run or resume frozen model cases with an atomic checkpoint per run."""
 
     if not _valid_revision(code_revision):
         raise ValueError("code revision must be a lowercase hexadecimal Git revision")
     validate_evaluation_manifest(manifest, provider)
-    expected = _expected_runs(manifest)
-    if len(expected) != 100:
+    expected = _expected_runs(manifest, scenario_ids)
+    if scenario_ids is None and len(expected) != 100:
         raise ValueError("live evaluation contract must contain exactly 100 runs")
 
     destination = Path(output_path)
@@ -101,11 +102,28 @@ def load_evaluation_run_records(path: str | Path) -> tuple[EvaluationRunRecord, 
 
 def _expected_runs(
     manifest: CoordinatorEvaluationManifest,
+    scenario_ids: tuple[str, ...] | None,
 ) -> tuple[tuple[str, int], ...]:
+    if scenario_ids is not None:
+        if not scenario_ids:
+            raise ValueError("scenario filter cannot be empty")
+        if len(set(scenario_ids)) != len(scenario_ids):
+            raise ValueError("scenario filter cannot contain duplicates")
+        cases = {case.scenario_id: case for case in manifest.cases}
+        for scenario_id in scenario_ids:
+            case = cases.get(scenario_id)
+            if case is None or (
+                case.expected_behavior is not EvaluationCaseBehavior.MODEL_EXERCISED
+            ):
+                raise ValueError("scenario filter must name model-exercising cases")
+        selected = set(scenario_ids)
+    else:
+        selected = {case.scenario_id for case in manifest.cases}
     return tuple(
         (case.scenario_id, run_number)
         for case in manifest.cases
-        if case.expected_behavior is EvaluationCaseBehavior.MODEL_EXERCISED
+        if case.scenario_id in selected
+        and case.expected_behavior is EvaluationCaseBehavior.MODEL_EXERCISED
         for run_number in range(1, case.repeated_runs + 1)
     )
 
@@ -140,7 +158,8 @@ def _validate_checkpoint(
             record.contract_version
             != (
                 "coordinator-eval-run-v2"
-                if manifest.contract_version == "coordinator-eval-v2"
+                if manifest.contract_version
+                in {"coordinator-eval-v2", "coordinator-eval-v3"}
                 else "coordinator-eval-run-v1"
             )
             or record.code_revision != code_revision
@@ -182,7 +201,8 @@ def _batch_summary(
     return EvaluationBatchSummary(
         contract_version=(
             "coordinator-eval-batch-v2"
-            if manifest.contract_version == "coordinator-eval-v2"
+            if manifest.contract_version
+            in {"coordinator-eval-v2", "coordinator-eval-v3"}
             else "coordinator-eval-batch-v1"
         ),
         code_revision=code_revision,
@@ -200,7 +220,8 @@ def _batch_summary(
         ),
         cost_complete_run_count=(
             sum(record.cost_complete is True for record in records)
-            if manifest.contract_version == "coordinator-eval-v2"
+            if manifest.contract_version
+            in {"coordinator-eval-v2", "coordinator-eval-v3"}
             else None
         ),
     )

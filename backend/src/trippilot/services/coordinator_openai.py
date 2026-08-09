@@ -34,8 +34,8 @@ MAX_COORDINATOR_CONTEXT_BYTES = 8_192
 MAX_PROVIDER_REQUEST_BYTES = 16_000
 MAX_PROVIDER_RESPONSE_BYTES = 32_768
 MAX_OUTPUT_TOKENS = 400
-# Checked against the official model page immediately before the 2026-08-09
-# live evaluation: US$2.00 input / US$12.00 output per million tokens.
+# Rechecked against the official model page immediately before the 2026-08-10
+# V3 diagnostic: US$2.00 input / US$12.00 output per million tokens.
 TERRA_INPUT_COST_MICRO_USD_PER_TOKEN = 2
 TERRA_OUTPUT_COST_MICRO_USD_PER_TOKEN = 12
 
@@ -188,7 +188,7 @@ def _request_payload(
     return {
         "model": model,
         "store": False,
-        "reasoning": {"effort": "none"},
+        "reasoning": {"effort": "low"},
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "input": [
             {

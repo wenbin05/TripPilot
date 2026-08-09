@@ -162,7 +162,9 @@ class CoordinatorEvaluationCase(EvaluationSchema):
 
 
 class CoordinatorEvaluationManifest(EvaluationSchema):
-    contract_version: Literal["coordinator-eval-v1", "coordinator-eval-v2"]
+    contract_version: Literal[
+        "coordinator-eval-v1", "coordinator-eval-v2", "coordinator-eval-v3"
+    ]
     fixture_path: Literal["data/mock/kingston-toronto-v1.json"]
     fixture_snapshot_version: Literal["2026-08-01.v1"]
     context_contract_version: Literal["coordinator-context-v1"]
@@ -181,6 +183,7 @@ class CoordinatorEvaluationManifest(EvaluationSchema):
         expected_configuration = {
             "coordinator-eval-v1": ("trippilot-coordinator-prompt-v1", "low"),
             "coordinator-eval-v2": ("trippilot-coordinator-prompt-v2", "none"),
+            "coordinator-eval-v3": ("trippilot-coordinator-prompt-v2", "low"),
         }
         if (self.prompt_id, self.reasoning_effort) != expected_configuration[
             self.contract_version
@@ -344,7 +347,8 @@ def validate_evaluation_manifest(
     return EvaluationManifestValidation(
         contract_version=(
             "coordinator-eval-validation-v2"
-            if manifest.contract_version == "coordinator-eval-v2"
+            if manifest.contract_version
+            in {"coordinator-eval-v2", "coordinator-eval-v3"}
             else "coordinator-eval-validation-v1"
         ),
         fixture_snapshot_version=metadata.snapshot_version,
@@ -406,10 +410,15 @@ def run_evaluation_case(
     report = validate_itinerary(request, selected.itinerary, selected.provider_snapshot)
     if not report.is_valid:
         raise RuntimeError("evaluation attempted to record an invalid canonical result")
-    is_v2 = manifest.contract_version == "coordinator-eval-v2"
+    uses_v2_observability = manifest.contract_version in {
+        "coordinator-eval-v2",
+        "coordinator-eval-v3",
+    }
     return EvaluationRunRecord(
         contract_version=(
-            "coordinator-eval-run-v2" if is_v2 else "coordinator-eval-run-v1"
+            "coordinator-eval-run-v2"
+            if uses_v2_observability
+            else "coordinator-eval-run-v1"
         ),
         scenario_id=case.scenario_id,
         code_revision=code_revision,
@@ -445,9 +454,13 @@ def run_evaluation_case(
             else None
         ),
         coordinator_elapsed_ms=(
-            max(0, round((monotonic() - started) * 1_000)) if is_v2 else None
+            max(0, round((monotonic() - started) * 1_000))
+            if uses_v2_observability
+            else None
         ),
-        cost_complete=(len(metadata) == counting.attempt_count if is_v2 else None),
+        cost_complete=(
+            len(metadata) == counting.attempt_count if uses_v2_observability else None
+        ),
     )
 
 

@@ -19,7 +19,7 @@ from .coordinator import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v2.json"
+MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v3.json"
 FIXTURE_PATH = REPOSITORY_ROOT / "data/mock/kingston-toronto-v1.json"
 
 
@@ -28,6 +28,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--live-output", type=Path)
     parser.add_argument("--code-revision")
     parser.add_argument("--acknowledge-paid-api", action="store_true")
+    parser.add_argument(
+        "--scenario",
+        action="append",
+        help="Run one frozen model-exercising scenario; repeat to select more.",
+    )
     return parser
 
 
@@ -66,11 +71,18 @@ def main() -> None:
             adapter,
             code_revision=arguments.code_revision,
             output_path=arguments.live_output,
+            scenario_ids=(
+                tuple(arguments.scenario) if arguments.scenario is not None else None
+            ),
             on_record=report_progress,
         )
         print(summary.model_dump_json())
         return
-    if arguments.code_revision is not None or arguments.acknowledge_paid_api:
+    if (
+        arguments.code_revision is not None
+        or arguments.acknowledge_paid_api
+        or arguments.scenario is not None
+    ):
         raise SystemExit("live options require --live-output")
     cohorts = Counter(case.cohort.value for case in manifest.cases)
     output = {

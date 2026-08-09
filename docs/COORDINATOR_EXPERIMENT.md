@@ -264,11 +264,13 @@ responses. Evaluation uses synthetic inputs and sanitized artifacts only.
 
 ## 8. Evaluation protocol
 
-The completed V1 manifest remains frozen at
-`data/evaluation/coordinator-eval-v1.json`. The registered V2 manifest at
-`data/evaluation/coordinator-eval-v2.json` preserves every request profile, case,
-candidate ID, and candidate-set digest while versioning only the prompt,
-reasoning setting, and run observability contract. Their strict records freeze
+The completed V1 and V2 manifests remain frozen at
+`data/evaluation/coordinator-eval-v1.json` and
+`data/evaluation/coordinator-eval-v2.json`. The registered V3 diagnostic manifest
+at `data/evaluation/coordinator-eval-v3.json` preserves every request profile,
+case, candidate ID, and candidate-set digest from V2 while restoring Terra
+reasoning effort to `low`. V3 retains Prompt V2 and the V2 run-observability
+contract. Their strict records freeze
 normalized requests, synthetic preference notes, expected scope behavior,
 fixture snapshot, deterministic evaluation candidate IDs, canonical candidate-
 set digests, prompt/contract versions, requested model, and generation
@@ -398,10 +400,12 @@ justify a cluttered interface or reduced comprehension.
    20 of 40 preference selections differed from the control, making the required
    24 reviewer wins impossible. See
    `docs/COORDINATOR_EVALUATION_RESULT_V2.md`; do not enable the experiment.
-7. **Proposed, not approved:** isolate ranking quality by retaining prompt V2 and
-   the V2 observability contract while restoring Terra reasoning effort `low`
-   under a V3 manifest. Run only a narrow conflicting/shorter-transfer diagnostic
-   before considering another full paid batch.
+7. **Diagnostic approved and prepared:** isolate ranking quality by retaining
+   Prompt V2 and the V2 observability contract while restoring Terra reasoning
+   effort `low` under a V3 manifest. The paid diagnostic is limited to five runs
+   each of `preference-conflicting` and `preference-shorter-transfers`, with an
+   atomic resumable checkpoint. A full 100-run V3 batch requires separate
+   approval after this evidence is reviewed.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent
@@ -415,7 +419,7 @@ evaluation model because this is a small structured ranking decision. The model,
 8,192-byte context, 16,000-byte request, and 400-output-token ceilings form the
 server-side spend boundary under the pricing checked for this milestone; pricing
 must be rechecked before every live evaluation rather than treated as an API or
-price guarantee. The pre-smoke check on 2026-08-09 found official GPT-5.6 Terra
+price guarantee. The pre-diagnostic check on 2026-08-10 found official GPT-5.6 Terra
 pricing of US$2.00 per million input tokens and US$12.00 per million output
 tokens. The relevant official guidance is the
 [GPT-5.6 Terra model page](https://developers.openai.com/api/docs/models/gpt-5.6-terra),
