@@ -374,8 +374,11 @@ justify a cluttered interface or reduced comprehension.
    isolated experimental API contract, and the collapsed-by-default frontend
    opt-in. Until step 4, the endpoint makes no model call and returns an explicit
    `MODEL_NOT_CONFIGURED` deterministic fallback.
-4. Add one hosted-model adapter, server-side configuration, safe metadata, and
-   deterministic fallback.
+4. **Complete:** add one direct OpenAI Responses adapter, fixed server-side model
+   and endpoint allowlists, bounded low-reasoning structured output, one absolute
+   deadline with a two-second reserve, one allowlisted repair attempt, canonical
+   revalidation, stable failure metadata, and deterministic fallback. The
+   experiment remains disabled when configuration is absent.
 5. Run the frozen evaluation before enabling the experiment by default anywhere.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
@@ -385,9 +388,12 @@ improve the measured implementation without weakening privacy or deadlines.
 
 ## 11. Current OpenAI implementation guidance
 
-The implementation milestone must re-check current official documentation and
-pricing rather than treating this design as an API snapshot. At the time of this
-decision, the relevant guidance is the
+The implementation selected `gpt-5.6-terra` at low reasoning as the initial
+evaluation model because this is a small structured ranking decision. The model,
+8,192-byte context, 16,000-byte request, and 400-output-token ceilings form the
+server-side spend boundary under the pricing checked for this milestone; pricing
+must be rechecked before every live evaluation rather than treated as an API or
+price guarantee. The relevant official guidance is the
 [latest model guide](https://developers.openai.com/api/docs/guides/latest-model),
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
 [function calling](https://developers.openai.com/api/docs/guides/function-calling),

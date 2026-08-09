@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import deque
 
 from fastapi.responses import JSONResponse
@@ -33,6 +34,10 @@ class RequestLimitsMiddleware:
             return
 
         response_started = False
+        state = scope.setdefault("state", {})
+        state["trippilot_request_deadline_monotonic"] = (
+            time.monotonic() + self.timeout_seconds
+        )
 
         async def tracked_send(message: Message) -> None:
             nonlocal response_started

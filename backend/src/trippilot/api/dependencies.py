@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
@@ -9,7 +10,12 @@ from pathlib import Path
 from trippilot.domain import TripRequest
 from trippilot.providers import JsonMockTravelDataProvider, TravelDataProvider
 from trippilot.services import (
+    COORDINATOR_MODEL,
     CandidateEnumerationResult,
+    CoordinatorAdapter,
+    NotConfiguredCoordinatorAdapter,
+    OpenAICoordinatorAdapter,
+    OpenAICoordinatorConfig,
     PlanningResult,
     enumerate_trip_candidates,
     plan_trip,
@@ -41,3 +47,19 @@ def get_candidate_enumerator() -> CandidateEnumerator:
     """Return the replaceable deterministic candidate implementation."""
 
     return enumerate_trip_candidates
+
+
+def get_coordinator_adapter() -> CoordinatorAdapter:
+    """Return the one explicitly configured hosted adapter or safe fallback."""
+
+    if os.getenv("TRIPPILOT_COORDINATOR_ENABLED", "").strip().casefold() != "true":
+        return NotConfiguredCoordinatorAdapter()
+    api_key = os.getenv("TRIPPILOT_OPENAI_API_KEY", "")
+    model = os.getenv("TRIPPILOT_COORDINATOR_MODEL", "")
+    try:
+        config = OpenAICoordinatorConfig(api_key=api_key, model=model)
+    except ValueError:
+        return NotConfiguredCoordinatorAdapter()
+    if model != COORDINATOR_MODEL:
+        return NotConfiguredCoordinatorAdapter()
+    return OpenAICoordinatorAdapter(config)

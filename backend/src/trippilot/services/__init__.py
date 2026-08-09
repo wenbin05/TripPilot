@@ -6,6 +6,7 @@ from .coordinator_adapter import (
     CoordinatorAdapterFailureCode,
     CoordinatorAdapterResult,
     CoordinatorAdapterSuccess,
+    NotConfiguredCoordinatorAdapter,
 )
 from .coordinator_context import (
     FIXED_RANKER_ID,
@@ -17,6 +18,24 @@ from .coordinator_context import (
     CoordinatorSelectionFact,
     build_coordinator_context,
     derive_selection_facts,
+)
+from .coordinator_openai import (
+    COORDINATOR_MODEL,
+    COORDINATOR_PROMPT_ID,
+    MAX_COORDINATOR_CONTEXT_BYTES,
+    MAX_OUTPUT_TOKENS,
+    MAX_PROVIDER_REQUEST_BYTES,
+    MAX_PROVIDER_RESPONSE_BYTES,
+    OPENAI_RESPONSES_URL,
+    OpenAICoordinatorAdapter,
+    OpenAICoordinatorConfig,
+)
+from .coordinator_orchestrator import (
+    CoordinatorRunFailure,
+    CoordinatorRunFailureCode,
+    CoordinatorRunResult,
+    CoordinatorRunSuccess,
+    run_coordinator,
 )
 from .coordinator_schemas import (
     MAX_COORDINATOR_DECISION_BYTES,
@@ -77,6 +96,7 @@ __all__ = [
     "CoordinatorAdapterFailureCode",
     "CoordinatorAdapterResult",
     "CoordinatorAdapterSuccess",
+    "NotConfiguredCoordinatorAdapter",
     "CoordinatorContext",
     "CoordinatorCandidateBinding",
     "CoordinatorContextBuildFailure",
@@ -90,6 +110,19 @@ __all__ = [
     "CoordinatorRetryCode",
     "CoordinatorRetryFeedback",
     "CoordinatorTransportModeTag",
+    "COORDINATOR_MODEL",
+    "COORDINATOR_PROMPT_ID",
+    "MAX_COORDINATOR_CONTEXT_BYTES",
+    "MAX_OUTPUT_TOKENS",
+    "MAX_PROVIDER_REQUEST_BYTES",
+    "MAX_PROVIDER_RESPONSE_BYTES",
+    "OPENAI_RESPONSES_URL",
+    "OpenAICoordinatorAdapter",
+    "OpenAICoordinatorConfig",
+    "CoordinatorRunFailure",
+    "CoordinatorRunFailureCode",
+    "CoordinatorRunResult",
+    "CoordinatorRunSuccess",
     "DaypartActivityCounts",
     "DecisionContextFailure",
     "DecisionContextFailureCode",
@@ -109,5 +142,6 @@ __all__ = [
     "normalize_preference_notes",
     "parse_coordinator_decision",
     "plan_trip",
+    "run_coordinator",
     "validate_decision_for_context",
 ]

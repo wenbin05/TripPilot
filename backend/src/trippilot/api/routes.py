@@ -4,24 +4,28 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from trippilot.domain import Money, Pricing, TripRequest, ValidationReport
 from trippilot.providers import LocationRecord, TravelDataProvider
 from trippilot.services import (
     FIXED_RANKER_ID,
     BoundCoordinatorContext,
+    CoordinatorAdapter,
+    CoordinatorRunSuccess,
     PlanningFailure,
     PlanningFailureCode,
     PlanningSuccess,
     build_coordinator_context,
     derive_selection_facts,
+    run_coordinator,
 )
 
 from .dependencies import (
     CandidateEnumerator,
     Planner,
     get_candidate_enumerator,
+    get_coordinator_adapter,
     get_planner,
     get_provider,
 )
@@ -60,6 +64,12 @@ PlannerDependency = Annotated[Planner, Depends(get_planner)]
 CandidateEnumeratorDependency = Annotated[
     CandidateEnumerator, Depends(get_candidate_enumerator)
 ]
+CoordinatorAdapterDependency = Annotated[
+    CoordinatorAdapter, Depends(get_coordinator_adapter)
+]
+
+COORDINATOR_PLANNER_ID = "trippilot-coordinator-v1"
+COORDINATOR_DEADLINE_RESERVE_SECONDS = 2.0
 
 PLANNING_RATIONALE = (
     "The bounded deterministic planner selected a validator-clean proposal using "
@@ -73,6 +83,10 @@ COORDINATOR_FALLBACK_RATIONALE = (
 COORDINATOR_FALLBACK_WARNING = (
     "The extra preferences could not be applied. TripPilot selected a validated "
     "proposal using its deterministic fallback."
+)
+COORDINATOR_ASSISTED_RATIONALE = (
+    "The optional coordinator interpreted the submitted soft preferences and "
+    "selected one validator-clean proposal from the same canonical candidate set.",
 )
 
 
@@ -294,9 +308,11 @@ def plan_itinerary(
     },
 )
 def coordinate_itinerary(
+    http_request: Request,
     body: CoordinatorPlanRequest,
     provider: ProviderDependency,
     enumerator: CandidateEnumeratorDependency,
+    coordinator_adapter: CoordinatorAdapterDependency,
 ) -> CoordinatorPlanResponse:
     try:
         destination = provider.get_destination(body.destination)
@@ -320,6 +336,7 @@ def coordinate_itinerary(
         )
 
     selected = result.candidates[0]
+    selected_candidate_id: str | None = None
     bound = build_coordinator_context(
         request,
         result,
@@ -327,18 +344,54 @@ def coordinate_itinerary(
         preference_notes=body.preference_notes,
     )
     if isinstance(bound, BoundCoordinatorContext):
-        experiment = experiment.model_copy(
-            update={
-                "selection_facts": derive_selection_facts(
-                    bound.bindings[0].candidate_id, bound.context
-                )
-            }
+        request_deadline = http_request.scope.get("state", {}).get(
+            "trippilot_request_deadline_monotonic"
         )
+        if isinstance(request_deadline, int | float):
+            coordinator_deadline = (
+                float(request_deadline) - COORDINATOR_DEADLINE_RESERVE_SECONDS
+            )
+            coordinated = run_coordinator(
+                request,
+                bound,
+                coordinator_adapter,
+                deadline_monotonic=coordinator_deadline,
+            )
+            if isinstance(coordinated, CoordinatorRunSuccess):
+                selected = coordinated.candidate
+                selected_candidate_id = coordinated.decision.selected_candidate_id
+                experiment = experiment.model_copy(
+                    update={
+                        "approach": "coordinator_assisted",
+                        "interpreted_preference_tags": (
+                            coordinated.decision.interpreted_preference_tags
+                        ),
+                        "selection_facts": derive_selection_facts(
+                            cast(str, selected_candidate_id), bound.context
+                        ),
+                        "fallback_code": None,
+                    }
+                )
+            else:
+                experiment = experiment.model_copy(
+                    update={
+                        "selection_facts": derive_selection_facts(
+                            bound.bindings[0].candidate_id, bound.context
+                        ),
+                        "fallback_code": CoordinatorFallbackCode(
+                            coordinated.code.value
+                        ),
+                    }
+                )
     fallback = PlanningSuccess(
         itinerary=selected.itinerary,
         validation_report=selected.validation_report,
         fixture_snapshot_version=result.fixture_snapshot_version,
-        planner_id=FIXED_RANKER_ID,
+        planner_id=(
+            COORDINATOR_PLANNER_ID
+            if experiment.approach == "coordinator_assisted"
+            else FIXED_RANKER_ID
+        ),
         matched_interests=selected.matched_interests,
         assumptions=result.assumptions,
         disclosures=result.disclosures,
@@ -347,8 +400,16 @@ def coordinate_itinerary(
         request,
         fallback,
         provider,
-        planning_rationale=COORDINATOR_FALLBACK_RATIONALE,
-        warnings=(COORDINATOR_FALLBACK_WARNING,),
+        planning_rationale=(
+            COORDINATOR_ASSISTED_RATIONALE
+            if experiment.approach == "coordinator_assisted"
+            else COORDINATOR_FALLBACK_RATIONALE
+        ),
+        warnings=(
+            ()
+            if experiment.approach == "coordinator_assisted"
+            else (COORDINATOR_FALLBACK_WARNING,)
+        ),
     )
     return CoordinatorPlanningSuccessResponse(
         **success.model_dump(), experiment=experiment

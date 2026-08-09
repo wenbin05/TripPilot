@@ -50,3 +50,17 @@ class CoordinatorAdapter(Protocol):
         deadline_monotonic: float,
         retry_feedback: CoordinatorRetryFeedback | None = None,
     ) -> CoordinatorAdapterResult: ...
+
+
+class NotConfiguredCoordinatorAdapter:
+    """Explicit safe adapter used when the hosted experiment is disabled."""
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        del context, deadline_monotonic, retry_feedback
+        return CoordinatorAdapterFailure(CoordinatorAdapterFailureCode.NOT_CONFIGURED)

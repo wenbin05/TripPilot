@@ -199,14 +199,14 @@ The deterministic core, FastAPI endpoint, and Next.js client are complete.
 Internal deterministic candidate enumeration now returns one to five canonical,
 validator-clean proposals without changing the standard endpoint, and eight
 frozen structured requests meet the two-candidate diversity prerequisite.
-Strict internal coordinator schemas, bounded normalization and parsing, and an
-SDK-neutral adapter protocol are also defined without any model integration.
-Canonical summary construction, request-scoped IDs, and an isolated opt-in API
-and frontend contract are now implemented; the endpoint currently returns an
-explicit validated deterministic fallback because no hosted adapter is
-configured. The next bounded phase adds that single adapter and deadline-bound
-orchestration. The eventual optional coordinator ranks two to five candidates
-using soft preferences.
+Strict internal coordinator schemas, bounded normalization and parsing, an
+SDK-neutral adapter protocol, canonical summary construction, request-scoped
+IDs, and an isolated opt-in API and frontend contract are implemented. One
+direct, tool-free hosted-model adapter is now available only through explicit
+server configuration. The coordinator uses GPT-5.6 Terra with low reasoning to
+rank two to five candidates under one absolute deadline and one allowed repair
+attempt; missing or failed model configuration keeps the validated deterministic
+fallback.
 It does not generate authoritative itinerary facts and is retained only if the
 gates in `docs/COORDINATOR_EXPERIMENT.md` pass. Persistence, selected live
 providers, containerization, and deployment remain later changes requiring
@@ -214,8 +214,8 @@ separate scope and threat reviews.
 
 The approved experiment may add `preference_notes`: optional soft-preference
 text normalized and limited to at most 300 Unicode code points. It is not part
-of the accepted deterministic endpoint. When implemented behind explicit
-experiment opt-in, it is treated as untrusted ranking input and cannot override
+of the accepted deterministic endpoint. Behind explicit experiment opt-in, it
+is treated as untrusted ranking input and cannot override
 structured constraints
 or add supported requirements. Booking, payment, multi-city, visa, safety,
 medical, dietary, mobility, accessibility, and current-availability requests in

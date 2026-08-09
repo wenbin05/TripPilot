@@ -10,10 +10,103 @@ import pytest
 from fastapi.testclient import TestClient
 
 from trippilot.api.app import app, create_app
-from trippilot.api.dependencies import get_planner, get_provider
+from trippilot.api.dependencies import (
+    get_coordinator_adapter,
+    get_planner,
+    get_provider,
+)
 from trippilot.domain import Severity, ValidationReport, Violation, ViolationCode
 from trippilot.providers import LocationRecord
-from trippilot.services import PlanningSuccess, plan_trip
+from trippilot.services import (
+    AbstentionReason,
+    CoordinatorAdapterFailure,
+    CoordinatorAdapterFailureCode,
+    CoordinatorAdapterResult,
+    CoordinatorAdapterSuccess,
+    CoordinatorContext,
+    CoordinatorDecision,
+    CoordinatorRetryFeedback,
+    InterpretedPreferenceTag,
+    PlanningSuccess,
+    plan_trip,
+)
+
+
+class SelectingCoordinatorAdapter:
+    def __init__(self, *, fail_first: bool = False) -> None:
+        self.fail_first = fail_first
+        self.calls: list[CoordinatorRetryFeedback | None] = []
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        assert deadline_monotonic > time.monotonic()
+        self.calls.append(retry_feedback)
+        if self.fail_first and len(self.calls) == 1:
+            return CoordinatorAdapterFailure(
+                CoordinatorAdapterFailureCode.OUTPUT_INVALID
+            )
+        return CoordinatorAdapterSuccess(
+            CoordinatorDecision(
+                contract_version="coordinator-decision-v1",
+                status="selection",
+                selected_candidate_id=context.candidates[-1].candidate_id,
+                interpreted_preference_tags=(
+                    InterpretedPreferenceTag.ACTIVITY_VARIETY,
+                ),
+                prioritized_interests=(),
+                abstention_reason=None,
+            )
+        )
+
+
+class FailingCoordinatorAdapter:
+    def __init__(self, code: CoordinatorAdapterFailureCode) -> None:
+        self.code = code
+        self.call_count = 0
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        del context, deadline_monotonic, retry_feedback
+        self.call_count += 1
+        return CoordinatorAdapterFailure(self.code)
+
+
+class NonSelectionCoordinatorAdapter:
+    def __init__(self, *, abstain: bool) -> None:
+        self.abstain = abstain
+        self.call_count = 0
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        del context, deadline_monotonic, retry_feedback
+        self.call_count += 1
+        return CoordinatorAdapterSuccess(
+            CoordinatorDecision(
+                contract_version="coordinator-decision-v1",
+                status="abstention" if self.abstain else "selection",
+                selected_candidate_id=None if self.abstain else "stale_candidate",
+                interpreted_preference_tags=(),
+                prioritized_interests=(),
+                abstention_reason=(
+                    AbstentionReason.NO_PREFERENCE_SIGNAL if self.abstain else None
+                ),
+            )
+        )
 
 
 class BrokenActivityProvider:
@@ -205,6 +298,100 @@ def test_coordinator_endpoint_returns_explicit_validated_fallback(
     assert any(
         "extra preferences" in warning.casefold() for warning in payload["warnings"]
     )
+
+
+@pytest.mark.parametrize("fail_first", [False, True])
+def test_coordinator_endpoint_returns_revalidated_assisted_selection(
+    client: TestClient, fail_first: bool
+) -> None:
+    adapter = SelectingCoordinatorAdapter(fail_first=fail_first)
+    app.dependency_overrides[get_coordinator_adapter] = lambda: adapter
+
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={
+            **request_body(end_date="2026-08-11"),
+            "preference_notes": "Prefer varied daytime activities",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "success"
+    assert payload["validation_report"] == {"is_valid": True, "violations": []}
+    assert payload["planner_id"] == "trippilot-coordinator-v1"
+    assert payload["experiment"]["approach"] == "coordinator_assisted"
+    assert payload["experiment"]["fallback_code"] is None
+    assert payload["experiment"]["interpreted_preference_tags"] == ["activity_variety"]
+    assert not any(
+        "extra preferences" in warning.casefold() for warning in payload["warnings"]
+    )
+    assert len(adapter.calls) == (2 if fail_first else 1)
+    if fail_first:
+        assert adapter.calls[1] is not None
+        assert adapter.calls[1].code == "OUTPUT_SCHEMA_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("adapter_code", "fallback_code"),
+    [
+        (CoordinatorAdapterFailureCode.TIMEOUT, "MODEL_TIMEOUT"),
+        (CoordinatorAdapterFailureCode.RATE_LIMITED, "MODEL_RATE_LIMITED"),
+        (CoordinatorAdapterFailureCode.PROVIDER_ERROR, "MODEL_PROVIDER_ERROR"),
+        (CoordinatorAdapterFailureCode.REFUSAL, "MODEL_REFUSAL"),
+    ],
+)
+def test_coordinator_provider_failure_uses_fixed_validated_fallback(
+    client: TestClient,
+    adapter_code: CoordinatorAdapterFailureCode,
+    fallback_code: str,
+) -> None:
+    adapter = FailingCoordinatorAdapter(adapter_code)
+    app.dependency_overrides[get_coordinator_adapter] = lambda: adapter
+
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={
+            **request_body(end_date="2026-08-11"),
+            "preference_notes": "Prefer varied daytime activities",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["validation_report"] == {"is_valid": True, "violations": []}
+    assert payload["planner_id"] == "trippilot-fixed-ranker-v1"
+    assert payload["experiment"]["approach"] == "deterministic_fallback"
+    assert payload["experiment"]["fallback_code"] == fallback_code
+    assert adapter.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("abstain", "fallback_code", "expected_calls"),
+    [(True, "MODEL_ABSTAINED", 1), (False, "UNKNOWN_CANDIDATE", 2)],
+)
+def test_coordinator_non_selection_uses_fixed_validated_fallback(
+    client: TestClient,
+    abstain: bool,
+    fallback_code: str,
+    expected_calls: int,
+) -> None:
+    adapter = NonSelectionCoordinatorAdapter(abstain=abstain)
+    app.dependency_overrides[get_coordinator_adapter] = lambda: adapter
+
+    response = client.post(
+        "/api/v1/itineraries/coordinate",
+        json={
+            **request_body(end_date="2026-08-11"),
+            "preference_notes": "Prefer varied daytime activities",
+        },
+    )
+
+    payload = response.json()
+    assert payload["validation_report"] == {"is_valid": True, "violations": []}
+    assert payload["planner_id"] == "trippilot-fixed-ranker-v1"
+    assert payload["experiment"]["fallback_code"] == fallback_code
+    assert adapter.call_count == expected_calls
 
 
 def test_coordinator_planning_failure_has_no_model_fallback_claim(

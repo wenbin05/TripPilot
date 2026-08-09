@@ -50,7 +50,7 @@ The initial suite should include:
 | Zero-duration scheduled item | Rejected; explicit non-blocking marker remains valid |
 | Currency mismatch | Validator rejects mixed-currency total |
 
-### Future coordinator evaluation
+### Coordinator evaluation
 
 The approved coordinator design is evaluated through the versioned
 `coordinator-eval-v1-draft` protocol in `docs/COORDINATOR_EXPERIMENT.md`; freeze
@@ -81,6 +81,14 @@ request-local opaque candidate IDs, strict selection-fact optima, normalized and
 non-echoed preference notes, isolation from `/plan`, explicit no-model fallback,
 frontend runtime guards, collapsed opt-in behavior, note preservation, and
 responsive disclosure layout.
+
+The Milestone 11 boundary suite additionally verifies the fixed OpenAI endpoint
+and model allowlists, no-tools structured request, low reasoning and token caps,
+deadline propagation, stable provider-failure mapping, refusal handling, a
+single invalid-output repair, canonical selection lookup, full revalidation,
+and public deterministic fallback. All automated tests use injected transports
+or adapters and perform no hosted-model call. Live repeated-run evaluation is
+the next phase and remains a prerequisite to enabling the experiment by default.
 
 ## 3. Metrics and gates
 

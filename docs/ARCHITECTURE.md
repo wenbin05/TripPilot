@@ -225,6 +225,19 @@ route makes no model call and explicitly reports `MODEL_NOT_CONFIGURED` while
 returning candidate zero through the validated fixed deterministic ranker. The
 existing `/plan` route and response contract remain unchanged.
 
+Milestone 11 adds one direct OpenAI Responses adapter with no agent framework,
+tools, MCP, tracing, or autonomous loop. Server configuration allowlists only
+the fixed HTTPS Responses endpoint and `gpt-5.6-terra`; low reasoning, strict
+structured output, an 8,192-byte context cap, 16,000-byte provider-request cap,
+400-output-token cap, and 32,768-byte response cap bound the call. The ten-second
+HTTP middleware records one absolute monotonic deadline, and orchestration
+reserves the final two seconds for cancellation, fallback, canonical lookup,
+complete deterministic revalidation, and serialization. Only an invalid output
+or context-bound ID/interest error permits one serial repair call. All other
+provider, refusal, timeout, abstention, deadline, selection, or revalidation
+failures immediately use candidate zero and expose only a stable fallback code.
+The existing `/plan` route remains offline and unchanged.
+
 ## 10. API delivery layer
 
 Milestone 4 exposes `GET /health` and `POST /api/v1/itineraries/plan` from the

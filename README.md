@@ -184,6 +184,8 @@ and proves eight frozen requests have pairwise material alternatives. Milestone
 9 adds strict internal context, summary, decision, retry, parsing, and adapter
 contracts without implementing an adapter. Milestone 10 adds canonical summary
 construction, request-scoped candidate IDs, the isolated `/coordinate` contract,
-and a collapsed-by-default frontend opt-in. Until a later adapter milestone, the
-endpoint reports `MODEL_NOT_CONFIGURED` and returns the validated deterministic
-fallback. The repository still contains no hosted-model runtime or API key.
+and a collapsed-by-default frontend opt-in. Milestone 11 adds one direct,
+tool-free GPT-5.6 Terra Responses adapter behind explicit local server
+configuration. Without it, the endpoint reports `MODEL_NOT_CONFIGURED` and
+returns the validated deterministic fallback. API keys remain server-side and
+are never committed.
