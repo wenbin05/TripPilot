@@ -189,3 +189,13 @@ tool-free GPT-5.6 Terra Responses adapter behind explicit local server
 configuration. Without it, the endpoint reports `MODEL_NOT_CONFIGURED` and
 returns the validated deterministic fallback. API keys remain server-side and
 are never committed.
+
+The frozen coordinator manifest can be validated without an API key or network
+egress from `backend/`:
+
+```bash
+python -m trippilot.evaluation
+```
+
+This checks all 26 synthetic cases and the 100-run live-evaluation schedule; it
+does not contact a hosted model.

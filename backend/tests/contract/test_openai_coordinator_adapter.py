@@ -67,6 +67,8 @@ def _provider_response(output: str) -> bytes:
     return json.dumps(
         {
             "status": "completed",
+            "model": "gpt-5.6-terra-2026-08-01",
+            "usage": {"input_tokens": 120, "output_tokens": 40, "total_tokens": 160},
             "output": [
                 {
                     "type": "message",
@@ -109,6 +111,11 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
 
     assert isinstance(result, CoordinatorAdapterSuccess)
     assert result.decision.selected_candidate_id == "candidate_A"
+    assert result.metadata is not None
+    assert result.metadata.returned_model == "gpt-5.6-terra-2026-08-01"
+    assert result.metadata.input_tokens == 120
+    assert result.metadata.output_tokens == 40
+    assert result.metadata.estimated_cost_micro_usd == 900
     assert captured["url"] == OPENAI_RESPONSES_URL
     assert captured["timeout"] == 5.0
     payload = json.loads(captured["body"])  # type: ignore[arg-type]
@@ -172,6 +179,8 @@ def test_retry_request_contains_only_stable_feedback() -> None:
             json.dumps(
                 {
                     "status": "completed",
+                    "model": "gpt-5.6-terra",
+                    "usage": {"input_tokens": 120, "output_tokens": 10},
                     "output": [
                         {
                             "type": "message",
@@ -195,7 +204,11 @@ def test_provider_failures_return_stable_codes_only(
 
     result = adapter.decide(_context(), deadline_monotonic=2.0)
 
-    assert result == CoordinatorAdapterFailure(expected)
+    assert isinstance(result, CoordinatorAdapterFailure)
+    assert result.code is expected
+    if expected is CoordinatorAdapterFailureCode.REFUSAL:
+        assert result.metadata is not None
+        assert result.metadata.input_tokens == 120
     assert not hasattr(result, "message")
 
 
@@ -217,6 +230,44 @@ def test_expired_deadline_stops_before_transport() -> None:
         CoordinatorAdapterFailure(CoordinatorAdapterFailureCode.TIMEOUT)
     )
     assert called is False
+
+
+def test_invalid_structured_output_retains_only_safe_usage_metadata() -> None:
+    adapter = OpenAICoordinatorAdapter(
+        OpenAICoordinatorConfig(api_key="test-secret"),
+        http_post=lambda *_args: (
+            HTTPStatus.OK,
+            _provider_response('{"private_raw_output":"must not escape"}'),
+        ),
+        monotonic=lambda: 1.0,
+    )
+
+    result = adapter.decide(_context(), deadline_monotonic=2.0)
+
+    assert isinstance(result, CoordinatorAdapterFailure)
+    assert result.code is CoordinatorAdapterFailureCode.OUTPUT_INVALID
+    assert result.metadata is not None
+    assert result.metadata.input_tokens == 120
+    assert result.metadata.output_tokens == 40
+    assert not hasattr(result, "raw_output")
+
+
+def test_incomplete_response_retains_usage_and_fails_closed() -> None:
+    body = _provider_response(_decision()).replace(
+        b'"status": "completed"', b'"status": "incomplete"'
+    )
+    adapter = OpenAICoordinatorAdapter(
+        OpenAICoordinatorConfig(api_key="test-secret"),
+        http_post=lambda *_args: (HTTPStatus.OK, body),
+        monotonic=lambda: 1.0,
+    )
+
+    result = adapter.decide(_context(), deadline_monotonic=2.0)
+
+    assert isinstance(result, CoordinatorAdapterFailure)
+    assert result.code is CoordinatorAdapterFailureCode.OUTPUT_INVALID
+    assert result.metadata is not None
+    assert result.metadata.estimated_cost_micro_usd == 900
 
 
 def test_configuration_rejects_silent_model_substitution() -> None:

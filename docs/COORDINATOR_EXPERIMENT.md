@@ -264,12 +264,14 @@ responses. Evaluation uses synthetic inputs and sanitized artifacts only.
 
 ## 8. Evaluation protocol
 
-The protocol is `coordinator-eval-v1-draft` until candidate generation freezes
-the executable `coordinator-eval-v1` manifest. Each record freezes its normalized
-request, preference notes, expected scope behavior, fixture snapshot,
-candidate-set IDs, prompt/contract version, model snapshot where available, and
-generation parameters. Hosted generations are evaluated distributionally, not
-claimed to be bitwise deterministic. Each model-exercising case runs five times.
+The executable `coordinator-eval-v1` manifest is frozen at
+`data/evaluation/coordinator-eval-v1.json`. Its strict request profiles and case
+records freeze normalized requests, synthetic preference notes, expected scope
+behavior, fixture snapshot, deterministic evaluation candidate IDs, canonical
+candidate-set digests, prompt/contract versions, requested model, and generation
+parameters. Hosted generations are evaluated distributionally, not claimed to
+be bitwise deterministic. Each of the 20 model-exercising cases runs five times,
+for 100 live runs.
 
 | Cohort | Cases | Purpose |
 | --- | ---: | --- |
@@ -379,7 +381,11 @@ justify a cluttered interface or reduced comprehension.
    deadline with a two-second reserve, one allowlisted repair attempt, canonical
    revalidation, stable failure metadata, and deterministic fallback. The
    experiment remains disabled when configuration is absent.
-5. Run the frozen evaluation before enabling the experiment by default anywhere.
+5. **In progress:** the 26-case executable manifest, offline candidate-drift
+   validation, three-arm run schema, bounded repair accounting, and sanitized
+   model/token/latency/cost records are complete. Run the 100 hosted generations,
+   blinded review, and go/no-go analysis before enabling the experiment by
+   default anywhere.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent

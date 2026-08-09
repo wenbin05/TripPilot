@@ -52,11 +52,10 @@ The initial suite should include:
 
 ### Coordinator evaluation
 
-The approved coordinator design is evaluated through the versioned
-`coordinator-eval-v1-draft` protocol in `docs/COORDINATOR_EXPERIMENT.md`; freeze
-the executable `coordinator-eval-v1` manifest only after deterministic candidate
-generation exists. Freeze an immutable model snapshot where available and
-always record the returned model,
+The approved coordinator design is evaluated through the frozen
+`coordinator-eval-v1` manifest at
+`data/evaluation/coordinator-eval-v1.json`. Freeze an immutable model snapshot
+where available and always record the returned model for each attempt,
 prompt/contract version, fixture snapshot, candidate set, and generation
 parameters. Hosted generations are assessed across repeated runs rather than
 claimed to be bitwise deterministic. Validate every selected canonical candidate
@@ -89,6 +88,17 @@ single invalid-output repair, canonical selection lookup, full revalidation,
 and public deterministic fallback. All automated tests use injected transports
 or adapters and perform no hosted-model call. Live repeated-run evaluation is
 the next phase and remains a prerequisite to enabling the experiment by default.
+
+The key-free Milestone 12 preparation freezes all 26 protocol cases and 13
+normalized request profiles. `python -m trippilot.evaluation` validates the
+fixture version, normalization outcomes, expected deterministic failures,
+candidate counts and metric digests, and standard-planner/candidate-zero parity
+without network access. The 20 hosted cohorts specify five repetitions each,
+giving 100 future live runs. Run artifacts contain only stable IDs, revision and
+contract identifiers, outcome/fallback codes, hard-validation status, returned
+model per metadata-bearing attempt, aggregate token counts, latency, and
+estimated cost; they omit notes, prompts,
+provider/model payloads, and itinerary bodies.
 
 ## 3. Metrics and gates
 
@@ -128,7 +138,8 @@ Each evaluation run records:
 - scenario ID and normalized request;
 - produced itinerary or structured failure;
 - validation report; and
-- for future agent runs, model/configuration identifiers and token/latency data.
+- for coordinator runs, model/configuration identifiers plus safe token, latency,
+  and estimated-cost metadata for each available attempt.
 
 ## 5. Adversarial and safety cases
 
