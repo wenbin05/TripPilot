@@ -43,8 +43,8 @@ This document is engineering guidance, not a claim of production readiness.
 
 ## 5. LLM safety boundary
 
-No LLM is needed for the deterministic MVP. Before adding the future single
-coordinator:
+No LLM is needed for the deterministic MVP. The optional single coordinator
+must continue to:
 
 - give it only the minimum schema-validated context;
 - use structured output with strict parsing and size limits;
@@ -90,10 +90,14 @@ Prompt injection is possible even in external travel descriptions. Provider data
 must never grant authority or override system and domain rules.
 
 The isolated coordinator endpoint does not echo preference notes or expose
-request-scoped candidate IDs. Its current no-adapter implementation performs no
-model egress and reports `MODEL_NOT_CONFIGURED` before returning the validated
-fixed-ranker fallback. The existing deterministic endpoint remains isolated and
-does not accept preference notes or experiment metadata.
+request-scoped candidate IDs. Hosted egress remains disabled unless
+`TRIPPILOT_COORDINATOR_ENABLED=true`, the exact allowlisted model is configured,
+and a server-side API key is present. The direct adapter rejects redirects,
+arbitrary provider URLs, silent model substitution, oversized contexts,
+oversized requests, oversized responses, and calls outside the absolute
+deadline. Missing or invalid configuration reports `MODEL_NOT_CONFIGURED` and
+returns the validated fixed-ranker fallback. The existing deterministic endpoint
+remains isolated and does not accept preference notes or experiment metadata.
 
 ## 6. Travel-specific safety and claims
 

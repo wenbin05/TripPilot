@@ -9,6 +9,7 @@ from trippilot.services.coordinator_adapter import (
     CoordinatorAdapter,
     CoordinatorAdapterFailure,
     CoordinatorAdapterFailureCode,
+    CoordinatorAdapterMetadata,
     CoordinatorAdapterResult,
     CoordinatorAdapterSuccess,
 )
@@ -141,3 +142,30 @@ def test_protocol_and_stub_use_no_network(monkeypatch: pytest.MonkeyPatch) -> No
     assert adapter.decide(context(), deadline_monotonic=1.0) == (
         CoordinatorAdapterFailure(CoordinatorAdapterFailureCode.NOT_CONFIGURED)
     )
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"returned_model": "model\nsecret"},
+        {"prompt_id": ""},
+        {"input_tokens": -1},
+        {"latency_ms": True},
+    ],
+)
+def test_safe_adapter_metadata_rejects_unbounded_or_invalid_values(
+    updates: dict[str, object],
+) -> None:
+    values: dict[str, object] = {
+        "prompt_id": "trippilot-coordinator-prompt-v1",
+        "requested_model": "gpt-5.6-terra",
+        "returned_model": "gpt-5.6-terra-2026-08-01",
+        "input_tokens": 100,
+        "output_tokens": 40,
+        "latency_ms": 250,
+        "estimated_cost_micro_usd": 850,
+    }
+    values.update(updates)
+
+    with pytest.raises(ValueError):
+        CoordinatorAdapterMetadata(**values)  # type: ignore[arg-type]

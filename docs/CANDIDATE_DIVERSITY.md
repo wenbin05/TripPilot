@@ -69,9 +69,9 @@ upper bound, strict limit handling, and preservation of structured failure when
 no candidate is possible.
 
 This passes the minimum diversity prerequisite in
-`docs/COORDINATOR_EXPERIMENT.md`. It does not yet freeze the full
-`coordinator-eval-v1` manifest; that manifest also requires strict coordinator
-schemas, the preference-note boundary, a fixed ranker, and an adapter protocol.
+`docs/COORDINATOR_EXPERIMENT.md`. The later Milestone 12 preparation freezes the
+full `coordinator-eval-v1` manifest after adding strict coordinator schemas, the
+preference-note boundary, fixed ranker, and bounded adapter protocol.
 
 ## 4. Next work
 
