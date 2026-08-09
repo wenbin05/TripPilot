@@ -52,10 +52,12 @@ The initial suite should include:
 
 ### Coordinator evaluation
 
-The approved coordinator design is evaluated through the frozen
-`coordinator-eval-v1` manifest at
-`data/evaluation/coordinator-eval-v1.json`. Freeze an immutable model snapshot
-where available and always record the returned model for each attempt,
+The completed coordinator V1 is preserved at
+`data/evaluation/coordinator-eval-v1.json`; the registered, not-yet-executed V2
+is at `data/evaluation/coordinator-eval-v2.json`. V2 preserves all cases and
+candidate digests while versioning the prompt, reasoning setting, and
+observability fields. Freeze an immutable model snapshot where available and
+always record the returned model for each metadata-bearing attempt,
 prompt/contract version, fixture snapshot, candidate set, and generation
 parameters. Hosted generations are assessed across repeated runs rather than
 claimed to be bitwise deterministic. Validate every selected canonical candidate
@@ -112,6 +114,12 @@ provider metadata cannot represent end-to-end latency or complete estimated cost
 when an attempt times out without returning usage. A future version must measure
 elapsed time independently and expose cost completeness before operational gates
 can be evaluated.
+
+V2 records `coordinator_elapsed_ms` from before deterministic case binding until
+the final selection or fallback, regardless of provider metadata availability.
+`cost_complete` is true only when every attempted model call returned safe usage
+metadata. Provider-derived token and cost totals remain estimates and are never
+treated as complete when that flag is false.
 
 ## 3. Metrics and gates
 

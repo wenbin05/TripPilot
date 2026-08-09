@@ -19,7 +19,7 @@ from .coordinator import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v1.json"
+MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v2.json"
 FIXTURE_PATH = REPOSITORY_ROOT / "data/mock/kingston-toronto-v1.json"
 
 

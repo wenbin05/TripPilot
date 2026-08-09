@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import socket
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -31,12 +32,18 @@ from trippilot.services import (
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v1.json"
+V2_MANIFEST_PATH = REPOSITORY_ROOT / "data/evaluation/coordinator-eval-v2.json"
 FIXTURE_PATH = REPOSITORY_ROOT / "data/mock/kingston-toronto-v1.json"
 
 
 @pytest.fixture(scope="module")
 def manifest() -> CoordinatorEvaluationManifest:
     return load_coordinator_evaluation_manifest(MANIFEST_PATH)
+
+
+@pytest.fixture(scope="module")
+def manifest_v2() -> CoordinatorEvaluationManifest:
+    return load_coordinator_evaluation_manifest(V2_MANIFEST_PATH)
 
 
 @pytest.fixture(scope="module")
@@ -93,6 +100,49 @@ class CountingSelectingAdapter(SelectingAdapter):
         )
 
 
+class V2SelectingAdapter(SelectingAdapter):
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        result = super().decide(
+            context,
+            deadline_monotonic=deadline_monotonic,
+            retry_feedback=retry_feedback,
+        )
+        assert isinstance(result, CoordinatorAdapterSuccess)
+        assert result.metadata is not None
+        return CoordinatorAdapterSuccess(
+            result.decision,
+            replace(
+                result.metadata,
+                prompt_id="trippilot-coordinator-prompt-v2",
+            ),
+        )
+
+
+class CountingV2SelectingAdapter(V2SelectingAdapter):
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        self.call_count += 1
+        return super().decide(
+            context,
+            deadline_monotonic=deadline_monotonic,
+            retry_feedback=retry_feedback,
+        )
+
+
 class FailIfCalledAdapter:
     def decide(
         self,
@@ -103,6 +153,18 @@ class FailIfCalledAdapter:
     ) -> CoordinatorAdapterResult:
         del context, deadline_monotonic, retry_feedback
         raise AssertionError("a complete checkpoint must not call the adapter")
+
+
+class TimeoutWithoutMetadataAdapter:
+    def decide(
+        self,
+        context: CoordinatorContext,
+        *,
+        deadline_monotonic: float,
+        retry_feedback: CoordinatorRetryFeedback | None = None,
+    ) -> CoordinatorAdapterResult:
+        del context, deadline_monotonic, retry_feedback
+        return CoordinatorAdapterFailure(CoordinatorAdapterFailureCode.TIMEOUT)
 
 
 class RepairingAdapter:
@@ -177,6 +239,30 @@ def test_manifest_freezes_all_protocol_cohorts_and_repetitions(
         )
         == 1
     )
+
+
+def test_v2_manifest_changes_only_the_versioned_model_configuration(
+    manifest: CoordinatorEvaluationManifest,
+    manifest_v2: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+) -> None:
+    assert manifest_v2.contract_version == "coordinator-eval-v2"
+    assert manifest_v2.prompt_id == "trippilot-coordinator-prompt-v2"
+    assert manifest_v2.reasoning_effort == "none"
+    assert manifest_v2.request_profiles == manifest.request_profiles
+    assert manifest_v2.cases == manifest.cases
+    assert (
+        validate_evaluation_manifest(manifest_v2, provider).contract_version
+        == "coordinator-eval-validation-v2"
+    )
+
+
+def test_v2_manifest_rejects_a_mismatched_reasoning_configuration() -> None:
+    payload = json.loads(V2_MANIFEST_PATH.read_text("utf-8"))
+    payload["reasoning_effort"] = "low"
+
+    with pytest.raises(ValidationError, match="configuration is inconsistent"):
+        CoordinatorEvaluationManifest.model_validate_json(json.dumps(payload))
 
 
 def test_manifest_validates_offline_against_frozen_candidates(
@@ -261,6 +347,55 @@ def test_offline_runner_records_three_arms_without_sensitive_payloads(
     assert "provider_snapshot" not in serialized
 
 
+def test_v2_run_records_end_to_end_elapsed_time_and_complete_cost(
+    manifest_v2: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+) -> None:
+    clock = iter((100.0, 101.0, 101.0, 103.5))
+
+    record = run_evaluation_case(
+        manifest_v2,
+        "preference-budget-buffer",
+        provider,
+        V2SelectingAdapter(),
+        code_revision="abcdef2",
+        run_number=1,
+        monotonic=lambda: next(clock),
+    )
+
+    assert record.contract_version == "coordinator-eval-run-v2"
+    assert record.prompt_id == "trippilot-coordinator-prompt-v2"
+    assert record.coordinator_elapsed_ms == 3_500
+    assert record.cost_complete is True
+    payload = json.loads(record.model_dump_json())
+    payload["cost_complete"] = False
+    with pytest.raises(ValidationError, match="must match attempt metadata"):
+        type(record).model_validate_json(json.dumps(payload))
+
+
+def test_v2_timeout_preserves_elapsed_time_and_marks_cost_incomplete(
+    manifest_v2: CoordinatorEvaluationManifest,
+    provider: JsonMockTravelDataProvider,
+) -> None:
+    clock = iter((100.0, 101.0, 101.0, 104.0))
+
+    record = run_evaluation_case(
+        manifest_v2,
+        "baseline-one-day",
+        provider,
+        TimeoutWithoutMetadataAdapter(),
+        code_revision="abcdef2",
+        run_number=1,
+        monotonic=lambda: next(clock),
+    )
+
+    assert record.outcome is EvaluationRunOutcome.DETERMINISTIC_FALLBACK
+    assert record.fallback_code == "MODEL_TIMEOUT"
+    assert record.coordinator_elapsed_ms == 4_000
+    assert record.cost_complete is False
+    assert record.estimated_cost_micro_usd is None
+
+
 def test_offline_runner_records_one_bounded_repair(
     manifest: CoordinatorEvaluationManifest,
     provider: JsonMockTravelDataProvider,
@@ -312,15 +447,15 @@ def test_runner_stops_cases_that_must_not_call_a_model(
 
 
 def test_live_batch_checkpoints_all_runs_and_resumes_without_model_calls(
-    manifest: CoordinatorEvaluationManifest,
+    manifest_v2: CoordinatorEvaluationManifest,
     provider: JsonMockTravelDataProvider,
     tmp_path: Path,
 ) -> None:
     output = tmp_path / "sanitized-runs.json"
-    adapter = CountingSelectingAdapter()
+    adapter = CountingV2SelectingAdapter()
 
     summary = run_live_evaluation_batch(
-        manifest,
+        manifest_v2,
         provider,
         adapter,
         code_revision="abcdef1",
@@ -328,9 +463,11 @@ def test_live_batch_checkpoints_all_runs_and_resumes_without_model_calls(
     )
 
     assert summary.expected_run_count == 100
+    assert summary.contract_version == "coordinator-eval-batch-v2"
     assert summary.completed_run_count == 100
     assert summary.coordinator_selection_count == 100
     assert summary.first_attempt_selection_count == 100
+    assert summary.cost_complete_run_count == 100
     assert adapter.call_count == 100
     records = load_evaluation_run_records(output)
     assert len(records) == 100
@@ -341,7 +478,7 @@ def test_live_batch_checkpoints_all_runs_and_resumes_without_model_calls(
     assert "proposed_itinerary" not in serialized
 
     resumed = run_live_evaluation_batch(
-        manifest,
+        manifest_v2,
         provider,
         FailIfCalledAdapter(),
         code_revision="abcdef1",

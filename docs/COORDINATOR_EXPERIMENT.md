@@ -264,14 +264,17 @@ responses. Evaluation uses synthetic inputs and sanitized artifacts only.
 
 ## 8. Evaluation protocol
 
-The executable `coordinator-eval-v1` manifest is frozen at
-`data/evaluation/coordinator-eval-v1.json`. Its strict request profiles and case
-records freeze normalized requests, synthetic preference notes, expected scope
-behavior, fixture snapshot, deterministic evaluation candidate IDs, canonical
-candidate-set digests, prompt/contract versions, requested model, and generation
+The completed V1 manifest remains frozen at
+`data/evaluation/coordinator-eval-v1.json`. The registered V2 manifest at
+`data/evaluation/coordinator-eval-v2.json` preserves every request profile, case,
+candidate ID, and candidate-set digest while versioning only the prompt,
+reasoning setting, and run observability contract. Their strict records freeze
+normalized requests, synthetic preference notes, expected scope behavior,
+fixture snapshot, deterministic evaluation candidate IDs, canonical candidate-
+set digests, prompt/contract versions, requested model, and generation
 parameters. Hosted generations are evaluated distributionally, not claimed to
 be bitwise deterministic. Each of the 20 model-exercising cases runs five times,
-for 100 live runs.
+for 100 live runs per version.
 
 | Cohort | Cases | Purpose |
 | --- | ---: | --- |
@@ -387,6 +390,11 @@ justify a cluttered interface or reduced comprehension.
    measurement gap. The deterministic planner remains the product path. See
    `docs/COORDINATOR_EVALUATION_RESULT_V1.md` before proposing a versioned V2;
    do not enable the experiment by default.
+6. **V2 prepared; not executed:** preserve the frozen case schedule, use prompt
+   `trippilot-coordinator-prompt-v2`, set Terra reasoning effort to `none`, make
+   candidate order the final tie-breaker after ignoring unsupported soft
+   preferences, and record full coordinator elapsed time plus explicit cost
+   completeness. V2 requires separate approval before paid execution.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent

@@ -8,7 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, TypeAdapter
+from pydantic import Field, TypeAdapter, model_validator
 
 from trippilot.providers import TravelDataProvider
 from trippilot.services import CoordinatorAdapter
@@ -28,7 +28,7 @@ _RUN_RECORDS = TypeAdapter(tuple[EvaluationRunRecord, ...])
 
 
 class EvaluationBatchSummary(EvaluationSchema):
-    contract_version: Literal["coordinator-eval-batch-v1"]
+    contract_version: Literal["coordinator-eval-batch-v1", "coordinator-eval-batch-v2"]
     code_revision: str = Field(pattern=r"^[a-f0-9]{7,40}$")
     expected_run_count: int = Field(ge=1, le=100)
     completed_run_count: int = Field(ge=0, le=100)
@@ -36,6 +36,18 @@ class EvaluationBatchSummary(EvaluationSchema):
     deterministic_fallback_count: int = Field(ge=0, le=100)
     first_attempt_selection_count: int = Field(ge=0, le=100)
     total_estimated_cost_micro_usd: int = Field(ge=0)
+    cost_complete_run_count: int | None = Field(default=None, ge=0, le=100)
+
+    @model_validator(mode="after")
+    def require_versioned_observability(self) -> EvaluationBatchSummary:
+        if self.contract_version == "coordinator-eval-batch-v1":
+            if self.cost_complete_run_count is not None:
+                raise ValueError("V1 summaries cannot contain V2 observability")
+        elif self.cost_complete_run_count is None or (
+            self.cost_complete_run_count > self.completed_run_count
+        ):
+            raise ValueError("V2 summaries require bounded cost completeness")
+        return self
 
 
 def run_live_evaluation_batch(
@@ -78,7 +90,7 @@ def run_live_evaluation_batch(
         if on_record is not None:
             on_record(record, len(completed), len(expected))
 
-    return _batch_summary(code_revision, completed, len(expected))
+    return _batch_summary(manifest, code_revision, completed, len(expected))
 
 
 def load_evaluation_run_records(path: str | Path) -> tuple[EvaluationRunRecord, ...]:
@@ -125,7 +137,13 @@ def _validate_checkpoint(
         seen.add(key)
         case = cases[record.scenario_id]
         if (
-            record.code_revision != code_revision
+            record.contract_version
+            != (
+                "coordinator-eval-run-v2"
+                if manifest.contract_version == "coordinator-eval-v2"
+                else "coordinator-eval-run-v1"
+            )
+            or record.code_revision != code_revision
             or record.fixture_snapshot_version != manifest.fixture_snapshot_version
             or record.prompt_id != manifest.prompt_id
             or record.requested_model != manifest.requested_model
@@ -152,14 +170,21 @@ def _write_checkpoint(path: Path, records: list[EvaluationRunRecord]) -> None:
 
 
 def _batch_summary(
-    code_revision: str, records: list[EvaluationRunRecord], expected_count: int
+    manifest: CoordinatorEvaluationManifest,
+    code_revision: str,
+    records: list[EvaluationRunRecord],
+    expected_count: int,
 ) -> EvaluationBatchSummary:
     selections = sum(
         record.outcome is EvaluationRunOutcome.COORDINATOR_SELECTION
         for record in records
     )
     return EvaluationBatchSummary(
-        contract_version="coordinator-eval-batch-v1",
+        contract_version=(
+            "coordinator-eval-batch-v2"
+            if manifest.contract_version == "coordinator-eval-v2"
+            else "coordinator-eval-batch-v1"
+        ),
         code_revision=code_revision,
         expected_run_count=expected_count,
         completed_run_count=len(records),
@@ -172,6 +197,11 @@ def _batch_summary(
         ),
         total_estimated_cost_micro_usd=sum(
             record.estimated_cost_micro_usd or 0 for record in records
+        ),
+        cost_complete_run_count=(
+            sum(record.cost_complete is True for record in records)
+            if manifest.contract_version == "coordinator-eval-v2"
+            else None
         ),
     )
 

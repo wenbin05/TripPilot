@@ -112,6 +112,7 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert isinstance(result, CoordinatorAdapterSuccess)
     assert result.decision.selected_candidate_id == "candidate_A"
     assert result.metadata is not None
+    assert result.metadata.prompt_id == "trippilot-coordinator-prompt-v2"
     assert result.metadata.returned_model == "gpt-5.6-terra-2026-08-01"
     assert result.metadata.input_tokens == 120
     assert result.metadata.output_tokens == 40
@@ -120,10 +121,12 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert captured["timeout"] == 5.0
     payload = json.loads(captured["body"])  # type: ignore[arg-type]
     assert payload["model"] == COORDINATOR_MODEL
-    assert payload["reasoning"] == {"effort": "low"}
+    assert payload["reasoning"] == {"effort": "none"}
     assert payload["max_output_tokens"] == MAX_OUTPUT_TOKENS
     assert payload["store"] is False
     assert payload["tools"] == []
+    developer_text = payload["input"][0]["content"][0]["text"]
+    assert "candidate order as the final tie-breaker" in developer_text
     assert payload["text"]["format"]["strict"] is True
     assert "test-secret" not in captured["body"].decode()  # type: ignore[union-attr]
 

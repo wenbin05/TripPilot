@@ -190,15 +190,17 @@ configuration. Without it, the endpoint reports `MODEL_NOT_CONFIGURED` and
 returns the validated deterministic fallback. API keys remain server-side and
 are never committed.
 
-The frozen coordinator manifest can be validated without an API key or network
-egress from `backend/`:
+The current frozen coordinator V2 manifest can be validated without an API key
+or network egress from `backend/`:
 
 ```bash
 python -m trippilot.evaluation
 ```
 
 This checks all 26 synthetic cases and the 100-run live-evaluation schedule; it
-does not contact a hosted model.
+does not contact a hosted model. V2 preserves the V1 cases and candidate digests
+while versioning the prompt, reasoning setting, elapsed-time measurement, and
+cost-completeness record after the documented V1 no-go.
 
 The paid 100-run evaluation is a separate, explicit operation. It requires the
 server-side key in the process environment, a clean Git revision, a local

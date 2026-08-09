@@ -28,7 +28,7 @@ from .coordinator_schemas import (
 )
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-COORDINATOR_PROMPT_ID = "trippilot-coordinator-prompt-v1"
+COORDINATOR_PROMPT_ID = "trippilot-coordinator-prompt-v2"
 COORDINATOR_MODEL = "gpt-5.6-terra"
 MAX_COORDINATOR_CONTEXT_BYTES = 8_192
 MAX_PROVIDER_REQUEST_BYTES = 16_000
@@ -46,7 +46,11 @@ provided metrics and soft preference signal. Do not invent itinerary facts,
 prices, availability, bookings, policies, or unsupported requirements. Return
 only the required structured decision. interpreted_preference_tags describe the
 submitted preference signal, not facts about a candidate. prioritized_interests
-must be a subset of the submitted interests."""
+must be a subset of the submitted interests. Conflicting, tied, unavailable, or
+out-of-scope soft preferences are not by themselves reasons to abstain. Ignore
+unsupported portions, compare the remaining submitted metrics, and use submitted
+candidate order as the final tie-breaker. Abstain only when no submitted
+candidate can be selected under this contract."""
 
 
 class _NoRedirectHandler(HTTPRedirectHandler):
@@ -184,7 +188,7 @@ def _request_payload(
     return {
         "model": model,
         "store": False,
-        "reasoning": {"effort": "low"},
+        "reasoning": {"effort": "none"},
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "input": [
             {
