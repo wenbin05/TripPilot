@@ -157,6 +157,7 @@ rejects wildcard configuration.
 
 ## Documentation
 
+- [Local demo and September acceptance checks](docs/LOCAL_DEMO.md)
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Candidate diversity evidence](docs/CANDIDATE_DIVERSITY.md)
