@@ -112,10 +112,11 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert isinstance(result, CoordinatorAdapterSuccess)
     assert result.decision.selected_candidate_id == "candidate_A"
     assert result.metadata is not None
+    assert result.metadata.prompt_id == "trippilot-coordinator-prompt-v2"
     assert result.metadata.returned_model == "gpt-5.6-terra-2026-08-01"
     assert result.metadata.input_tokens == 120
     assert result.metadata.output_tokens == 40
-    assert result.metadata.estimated_cost_micro_usd == 900
+    assert result.metadata.estimated_cost_micro_usd == 720
     assert captured["url"] == OPENAI_RESPONSES_URL
     assert captured["timeout"] == 5.0
     payload = json.loads(captured["body"])  # type: ignore[arg-type]
@@ -124,6 +125,8 @@ def test_adapter_sends_one_bounded_tool_free_structured_request() -> None:
     assert payload["max_output_tokens"] == MAX_OUTPUT_TOKENS
     assert payload["store"] is False
     assert payload["tools"] == []
+    developer_text = payload["input"][0]["content"][0]["text"]
+    assert "candidate order as the final tie-breaker" in developer_text
     assert payload["text"]["format"]["strict"] is True
     assert "test-secret" not in captured["body"].decode()  # type: ignore[union-attr]
 
@@ -267,7 +270,7 @@ def test_incomplete_response_retains_usage_and_fails_closed() -> None:
     assert isinstance(result, CoordinatorAdapterFailure)
     assert result.code is CoordinatorAdapterFailureCode.OUTPUT_INVALID
     assert result.metadata is not None
-    assert result.metadata.estimated_cost_micro_usd == 900
+    assert result.metadata.estimated_cost_micro_usd == 720
 
 
 def test_configuration_rejects_silent_model_substitution() -> None:

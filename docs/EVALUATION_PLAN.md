@@ -52,16 +52,29 @@ The initial suite should include:
 
 ### Coordinator evaluation
 
-The approved coordinator design is evaluated through the frozen
-`coordinator-eval-v1` manifest at
-`data/evaluation/coordinator-eval-v1.json`. Freeze an immutable model snapshot
-where available and always record the returned model for each attempt,
+The completed coordinator V1 and V2 protocols are preserved at
+`data/evaluation/coordinator-eval-v1.json` and
+`data/evaluation/coordinator-eval-v2.json`. V2 passed its operational gates but
+could not reach the frozen reviewer-win gate. The registered V3 diagnostic at
+`data/evaluation/coordinator-eval-v3.json` preserves all cases and candidate
+digests, retains Prompt V2 and V2 observability, and restores Terra reasoning
+effort to `low`. Its approved paid scope is exactly five runs each of
+`preference-conflicting` and `preference-shorter-transfers`; it is not approval
+for a full 100-run V3 batch. Freeze an immutable model snapshot where available and
+always record the returned model for each metadata-bearing attempt,
 prompt/contract version, fixture snapshot, candidate set, and generation
 parameters. Hosted generations are assessed across repeated runs rather than
 claimed to be bitwise deterministic. Validate every selected canonical candidate
 deterministically, compare it with the baseline on the same cases, and record
 invalid-output, repair, fallback, token, cost, and latency rates. Never use LLM
 self-grading as the source of truth for hard constraints.
+
+The V3 diagnostic is complete and recorded in
+`docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`. All ten runs were valid first-
+attempt selections, but the conflicting-preference case selected the control in
+all five runs. The tested selection mix did not supply the four additional
+potential wins needed to justify a full V3 evaluation, so no full batch or
+blinded review is authorized.
 
 ### Candidate-diversity prerequisite
 
@@ -99,6 +112,32 @@ contract identifiers, outcome/fallback codes, hard-validation status, returned
 model per metadata-bearing attempt, aggregate token counts, latency, and
 estimated cost; they omit notes, prompts,
 provider/model payloads, and itinerary bodies.
+
+The live runner requires an explicit paid-API acknowledgement and code revision,
+validates the frozen manifest before model egress, and writes an atomic sanitized
+checkpoint after each run. A resumed run rejects unknown, duplicate, mismatched,
+or cross-revision records before making another model call. The checkpoint is
+stored under the ignored local `tmp/` tree rather than committed.
+
+The completed V1 result and no-go decision are recorded in
+`docs/COORDINATOR_EVALUATION_RESULT_V1.md`. V1 also demonstrated that summing
+provider metadata cannot represent end-to-end latency or complete estimated cost
+when an attempt times out without returning usage. A future version must measure
+elapsed time independently and expose cost completeness before operational gates
+can be evaluated.
+
+V2 records `coordinator_elapsed_ms` from before deterministic case binding until
+the final selection or fallback, regardless of provider metadata availability.
+`cost_complete` is true only when every attempted model call returned safe usage
+metadata. Provider-derived token and cost totals remain estimates and are never
+treated as complete when that flag is false.
+
+The completed V2 result is recorded in
+`docs/COORDINATOR_EVALUATION_RESULT_V2.md`. V2 passed every operational gate but
+is a quality no-go: 20 of 40 preference selections were identical to the fixed-
+ranker control, so it cannot reach the frozen threshold of 24 reviewer wins.
+Blinded scoring is deferred for V2. A future version must retain the frozen gate
+and demonstrate a selection mix capable of passing before reviewer scoring.
 
 ## 3. Metrics and gates
 

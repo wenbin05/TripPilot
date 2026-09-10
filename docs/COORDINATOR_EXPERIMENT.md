@@ -264,14 +264,19 @@ responses. Evaluation uses synthetic inputs and sanitized artifacts only.
 
 ## 8. Evaluation protocol
 
-The executable `coordinator-eval-v1` manifest is frozen at
-`data/evaluation/coordinator-eval-v1.json`. Its strict request profiles and case
-records freeze normalized requests, synthetic preference notes, expected scope
-behavior, fixture snapshot, deterministic evaluation candidate IDs, canonical
-candidate-set digests, prompt/contract versions, requested model, and generation
+The completed V1 and V2 manifests remain frozen at
+`data/evaluation/coordinator-eval-v1.json` and
+`data/evaluation/coordinator-eval-v2.json`. The registered V3 diagnostic manifest
+at `data/evaluation/coordinator-eval-v3.json` preserves every request profile,
+case, candidate ID, and candidate-set digest from V2 while restoring Terra
+reasoning effort to `low`. V3 retains Prompt V2 and the V2 run-observability
+contract. Their strict records freeze
+normalized requests, synthetic preference notes, expected scope behavior,
+fixture snapshot, deterministic evaluation candidate IDs, canonical candidate-
+set digests, prompt/contract versions, requested model, and generation
 parameters. Hosted generations are evaluated distributionally, not claimed to
 be bitwise deterministic. Each of the 20 model-exercising cases runs five times,
-for 100 live runs.
+for 100 live runs per version.
 
 | Cohort | Cases | Purpose |
 | --- | ---: | --- |
@@ -381,11 +386,28 @@ justify a cluttered interface or reduced comprehension.
    deadline with a two-second reserve, one allowlisted repair attempt, canonical
    revalidation, stable failure metadata, and deterministic fallback. The
    experiment remains disabled when configuration is absent.
-5. **In progress:** the 26-case executable manifest, offline candidate-drift
-   validation, three-arm run schema, bounded repair accounting, and sanitized
-   model/token/latency/cost records are complete. Run the 100 hosted generations,
-   blinded review, and go/no-go analysis before enabling the experiment by
-   default anywhere.
+5. **V1 complete; no-go:** the 26-case executable manifest and 100 hosted runs
+   are complete. Reliability and preference availability missed their frozen
+   gates, and timeout attempts exposed an end-to-end latency/cost-completeness
+   measurement gap. The deterministic planner remains the product path. See
+   `docs/COORDINATOR_EVALUATION_RESULT_V1.md` before proposing a versioned V2;
+   do not enable the experiment by default.
+6. **V2 complete; quality no-go:** preserve the frozen case schedule, use prompt
+   `trippilot-coordinator-prompt-v2`, set Terra reasoning effort to `none`, make
+   candidate order the final tie-breaker after ignoring unsupported soft
+   preferences, and record full coordinator elapsed time plus explicit cost
+   completeness. All operational gates passed across 100 hosted runs, but only
+   20 of 40 preference selections differed from the control, making the required
+   24 reviewer wins impossible. See
+   `docs/COORDINATOR_EVALUATION_RESULT_V2.md`; do not enable the experiment.
+7. **V3 diagnostic complete; no full-batch approval:** isolate ranking quality by retaining
+   Prompt V2 and the V2 observability contract while restoring Terra reasoning
+   effort `low` under a V3 manifest. Ten first-attempt selections passed every
+   operational measure. The shorter-transfer case selected its strict optimum
+   in all five runs, but the conflicting case selected the fixed-ranker control
+   in all five and supplied none of the four additional potential wins sought by
+   the diagnostic. See `docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`; do not run
+   a full V3 batch.
 
 Framework choice follows the smallest sufficient boundary. A direct hosted-model
 response adapter is preferred for this short, application-owned flow. An agent
@@ -399,7 +421,10 @@ evaluation model because this is a small structured ranking decision. The model,
 8,192-byte context, 16,000-byte request, and 400-output-token ceilings form the
 server-side spend boundary under the pricing checked for this milestone; pricing
 must be rechecked before every live evaluation rather than treated as an API or
-price guarantee. The relevant official guidance is the
+price guarantee. The pre-diagnostic check on 2026-08-10 found official GPT-5.6 Terra
+pricing of US$2.00 per million input tokens and US$12.00 per million output
+tokens. The relevant official guidance is the
+[GPT-5.6 Terra model page](https://developers.openai.com/api/docs/models/gpt-5.6-terra),
 [latest model guide](https://developers.openai.com/api/docs/guides/latest-model),
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
 [function calling](https://developers.openai.com/api/docs/guides/function-calling),

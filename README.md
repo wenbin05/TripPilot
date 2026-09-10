@@ -161,6 +161,7 @@ rejects wildcard configuration.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Candidate diversity evidence](docs/CANDIDATE_DIVERSITY.md)
 - [Single coordinator experiment contract](docs/COORDINATOR_EXPERIMENT.md)
+- [Coordinator V3 diagnostic result](docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Product and UX benchmark](docs/PRODUCT_UX_BENCHMARK.md)
 - [Security](docs/SECURITY.md)
@@ -190,12 +191,41 @@ configuration. Without it, the endpoint reports `MODEL_NOT_CONFIGURED` and
 returns the validated deterministic fallback. API keys remain server-side and
 are never committed.
 
-The frozen coordinator manifest can be validated without an API key or network
-egress from `backend/`:
+The current frozen coordinator V3 diagnostic manifest can be validated without an API key
+or network egress from `backend/`:
 
 ```bash
 python -m trippilot.evaluation
 ```
 
-This checks all 26 synthetic cases and the 100-run live-evaluation schedule; it
-does not contact a hosted model.
+This checks all 26 synthetic cases and the complete 100-run schedule; it does
+not contact a hosted model. V3 preserves the V2 prompt, cases, candidate digests,
+elapsed-time measurement, and cost-completeness contract while restoring Terra
+reasoning effort to `low` for a narrow ranking-quality diagnostic.
+
+The approved paid V3 diagnostic is limited to two named scenarios and ten total
+runs. It requires the server-side key in the process environment, a clean Git
+revision, a local checkpoint path, and the billing acknowledgement flag:
+
+```bash
+cd backend
+set -a
+source .env
+set +a
+python -m trippilot.evaluation \
+  --live-output ../tmp/evaluation/coordinator-v3-diagnostic.json \
+  --code-revision <clean-git-revision> \
+  --acknowledge-paid-api \
+  --scenario preference-conflicting \
+  --scenario preference-shorter-transfers
+```
+
+The ignored checkpoint is atomically replaced after every completed run and can
+be resumed with the same command. It contains only strict sanitized run records.
+A full 100-run V3 evaluation requires separate approval.
+
+The ten-run V3 diagnostic is now complete. It passed all operational measures
+and selected the strict minimum-transfer candidate in five of five runs, but the
+conflicting-preference case selected the deterministic control in five of five
+runs. The result does not justify a full paid V3 batch; see
+`docs/COORDINATOR_EVALUATION_DIAGNOSTIC_V3.md`.

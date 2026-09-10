@@ -162,20 +162,33 @@ class CoordinatorEvaluationCase(EvaluationSchema):
 
 
 class CoordinatorEvaluationManifest(EvaluationSchema):
-    contract_version: Literal["coordinator-eval-v1"]
+    contract_version: Literal[
+        "coordinator-eval-v1", "coordinator-eval-v2", "coordinator-eval-v3"
+    ]
     fixture_path: Literal["data/mock/kingston-toronto-v1.json"]
     fixture_snapshot_version: Literal["2026-08-01.v1"]
     context_contract_version: Literal["coordinator-context-v1"]
     decision_contract_version: Literal["coordinator-decision-v1"]
-    prompt_id: Literal["trippilot-coordinator-prompt-v1"]
+    prompt_id: Literal[
+        "trippilot-coordinator-prompt-v1", "trippilot-coordinator-prompt-v2"
+    ]
     requested_model: Literal["gpt-5.6-terra"]
-    reasoning_effort: Literal["low"]
+    reasoning_effort: Literal["low", "none"]
     max_output_tokens: Literal[400]
     request_profiles: dict[ProfileId, CoordinatorEvaluationRequest]
     cases: tuple[CoordinatorEvaluationCase, ...] = Field(min_length=26, max_length=26)
 
     @model_validator(mode="after")
     def require_frozen_protocol_shape(self) -> Self:
+        expected_configuration = {
+            "coordinator-eval-v1": ("trippilot-coordinator-prompt-v1", "low"),
+            "coordinator-eval-v2": ("trippilot-coordinator-prompt-v2", "none"),
+            "coordinator-eval-v3": ("trippilot-coordinator-prompt-v2", "low"),
+        }
+        if (self.prompt_id, self.reasoning_effort) != expected_configuration[
+            self.contract_version
+        ]:
+            raise ValueError("evaluation version configuration is inconsistent")
         if set(case.request_profile_id for case in self.cases) - set(
             self.request_profiles
         ):
@@ -228,17 +241,21 @@ class EvaluationCaseValidation(EvaluationSchema):
 
 
 class EvaluationManifestValidation(EvaluationSchema):
-    contract_version: Literal["coordinator-eval-validation-v1"]
+    contract_version: Literal[
+        "coordinator-eval-validation-v1", "coordinator-eval-validation-v2"
+    ]
     fixture_snapshot_version: str
     cases: tuple[EvaluationCaseValidation, ...] = Field(min_length=26, max_length=26)
 
 
 class EvaluationRunRecord(EvaluationSchema):
-    contract_version: Literal["coordinator-eval-run-v1"]
+    contract_version: Literal["coordinator-eval-run-v1", "coordinator-eval-run-v2"]
     scenario_id: ScenarioId
     code_revision: str = Field(pattern=r"^[a-f0-9]{7,40}$")
     fixture_snapshot_version: Literal["2026-08-01.v1"]
-    prompt_id: Literal["trippilot-coordinator-prompt-v1"]
+    prompt_id: Literal[
+        "trippilot-coordinator-prompt-v1", "trippilot-coordinator-prompt-v2"
+    ]
     requested_model: Literal["gpt-5.6-terra"]
     baseline_planner_id: Literal["deterministic-greedy-bounded-v1"]
     fixed_ranker_id: Literal["trippilot-fixed-ranker-v1"]
@@ -260,6 +277,8 @@ class EvaluationRunRecord(EvaluationSchema):
     output_tokens: int | None = Field(default=None, ge=0)
     latency_ms: int | None = Field(default=None, ge=0)
     estimated_cost_micro_usd: int | None = Field(default=None, ge=0)
+    coordinator_elapsed_ms: int | None = Field(default=None, ge=0)
+    cost_complete: bool | None = None
 
     @model_validator(mode="after")
     def require_safe_consistent_outcome(self) -> Self:
@@ -290,6 +309,21 @@ class EvaluationRunRecord(EvaluationSchema):
             raise ValueError("returned models must match metadata-bearing attempts")
         if self.metadata_attempt_count > self.attempt_count:
             raise ValueError("metadata attempts cannot exceed all attempts")
+        if self.contract_version == "coordinator-eval-run-v1":
+            if (
+                self.prompt_id != "trippilot-coordinator-prompt-v1"
+                or self.coordinator_elapsed_ms is not None
+                or self.cost_complete is not None
+            ):
+                raise ValueError("V1 records cannot contain V2 observability fields")
+        elif (
+            self.prompt_id != "trippilot-coordinator-prompt-v2"
+            or self.coordinator_elapsed_ms is None
+            or self.cost_complete is None
+        ):
+            raise ValueError("V2 records require complete observability fields")
+        elif self.cost_complete != (self.metadata_attempt_count == self.attempt_count):
+            raise ValueError("cost completeness must match attempt metadata")
         return self
 
 
@@ -311,7 +345,12 @@ def validate_evaluation_manifest(
         _validate_case(manifest, case, provider) for case in manifest.cases
     )
     return EvaluationManifestValidation(
-        contract_version="coordinator-eval-validation-v1",
+        contract_version=(
+            "coordinator-eval-validation-v2"
+            if manifest.contract_version
+            in {"coordinator-eval-v2", "coordinator-eval-v3"}
+            else "coordinator-eval-validation-v1"
+        ),
         fixture_snapshot_version=metadata.snapshot_version,
         cases=validations,
     )
@@ -327,6 +366,7 @@ def run_evaluation_case(
     run_number: int,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> EvaluationRunRecord:
+    started = monotonic()
     case = _case_by_id(manifest, scenario_id)
     if case.expected_behavior not in {
         EvaluationCaseBehavior.MODEL_EXERCISED,
@@ -360,12 +400,26 @@ def run_evaluation_case(
         fallback_code = result.code
         selected = bound.bindings[0].candidate
     metadata = result.adapter_metadata
+    if any(
+        item.prompt_id != manifest.prompt_id
+        or item.requested_model != manifest.requested_model
+        for item in metadata
+    ):
+        raise RuntimeError("adapter metadata does not match the evaluation manifest")
     has_metadata = bool(metadata)
     report = validate_itinerary(request, selected.itinerary, selected.provider_snapshot)
     if not report.is_valid:
         raise RuntimeError("evaluation attempted to record an invalid canonical result")
+    uses_v2_observability = manifest.contract_version in {
+        "coordinator-eval-v2",
+        "coordinator-eval-v3",
+    }
     return EvaluationRunRecord(
-        contract_version="coordinator-eval-run-v1",
+        contract_version=(
+            "coordinator-eval-run-v2"
+            if uses_v2_observability
+            else "coordinator-eval-run-v1"
+        ),
         scenario_id=case.scenario_id,
         code_revision=code_revision,
         fixture_snapshot_version=manifest.fixture_snapshot_version,
@@ -398,6 +452,14 @@ def run_evaluation_case(
             sum(item.estimated_cost_micro_usd for item in metadata)
             if has_metadata
             else None
+        ),
+        coordinator_elapsed_ms=(
+            max(0, round((monotonic() - started) * 1_000))
+            if uses_v2_observability
+            else None
+        ),
+        cost_complete=(
+            len(metadata) == counting.attempt_count if uses_v2_observability else None
         ),
     )
 
