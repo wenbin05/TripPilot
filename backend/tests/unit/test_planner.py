@@ -215,13 +215,20 @@ def test_exact_budget_equality_is_valid(
     assert result.itinerary.total_estimated_cost.amount_minor == exact
 
 
+@pytest.mark.parametrize(
+    ("budget_minor", "display"),
+    [(1, "CAD 0.01"), (100, "CAD 1.00"), (123, "CAD 1.23")],
+)
 def test_impossible_budget_is_structured_failure(
     provider: JsonMockTravelDataProvider,
+    budget_minor: int,
+    display: str,
 ) -> None:
-    result = plan_trip(request(budget=1), provider)
+    result = plan_trip(request(budget=budget_minor), provider)
 
     assert isinstance(result, PlanningFailure)
     assert result.code is PlanningFailureCode.INSUFFICIENT_BUDGET
+    assert result.relevant_constraints == (f"All-in budget: {display}",)
     assert result.fixture_snapshot_version == "2026-08-01.v1"
     assert result.planner_id == PLANNER_ID
     assert any(
