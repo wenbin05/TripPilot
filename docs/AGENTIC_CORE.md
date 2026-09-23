@@ -5,6 +5,10 @@ one-to-four-day proposed student trip with deterministic hard constraints.
 
 ## Stages
 
+Completion priority: finish the local MVP using `MVP_COMPLETION.md` before
+starting stages 2–4. Those stages are expansion proposals, not remaining MVP
+requirements. The offline foundation can ship as internal experimental code.
+
 1. Offline foundation (this slice): an injected decision adapter requests local
    tools, receives structured observations, and chooses its next action. Tools
    inspect canonical candidate metrics and invoke the complete validator.
