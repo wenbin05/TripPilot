@@ -156,6 +156,7 @@ rejects wildcard configuration.
 ## Documentation
 
 - [MVP completion checklist](docs/MVP_COMPLETION.md)
+- [Integrated acceptance evidence and remaining zoom gate](docs/FINAL_MVP_ACCEPTANCE.md)
 - [Post-MVP bounded agent core and staged roadmap](docs/AGENTIC_CORE.md)
 - [Local demo and September acceptance checks](docs/LOCAL_DEMO.md)
 - [Product requirements](docs/PRD.md)

@@ -1,5 +1,10 @@
 # MVP completion contract
 
+September 23 status: integrated automated and browser checks pass. The actual
+200% browser-zoom gate remains open due to native browser-control permissions.
+See [the integrated acceptance evidence](FINAL_MVP_ACCEPTANCE.md), including
+the evaluated revision, screenshots, and exact remaining manual check.
+
 The next iteration is the final local MVP acceptance iteration. Freeze feature
 scope at the existing student planner: one city, one to four days, synthetic
 travel data, exact all-in estimates, deterministic validation, and a clean
