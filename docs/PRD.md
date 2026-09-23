@@ -223,6 +223,18 @@ this field must not be presented as satisfied.
 
 ## 14. Open product decisions
 
+### Approved post-MVP direction (2026-09-23)
+
+Build toward an evaluated single-agent planning workflow. The first slice is
+an internal offline state machine with strict local tool inputs/outputs,
+request-scoped canonical candidates, bounded tool observations, and safe
+fallback. See `AGENTIC_CORE.md` for implementation stages and acceptance gates.
+The existing coordinator V1–V3 results remain historical negative evidence for
+candidate ranking, not a verdict on tool-assisted planning. Hosted tool calling,
+candidate revision, and a new public opt-in require their own tested slices.
+The longer-term MCP, retrieval, persistence, and deployment roadmap remains
+separately scoped; it is not part of this slice or the accepted first MVP.
+
 - Exact supported origin/destination list and contents of the initial fixture set.
 - Whether the traveller maximum of 10 is suitable for the intended UX.
 - Accessibility, dietary, and mobility constraints for the next MVP iteration.

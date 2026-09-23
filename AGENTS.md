@@ -10,6 +10,12 @@ bookings, payments, authentication, multi-city travel, live travel APIs, visa
 advice, RAG, MCP, multiple runtime agents, background workers, or production
 deployment unless the product scope is explicitly revised.
 
+The approved post-MVP agentic phase starts with the internal, offline single-agent
+workflow in `docs/AGENTIC_CORE.md`. It may call allowlisted local inspection and
+validation tools under fixed step limits. This exception does not enable MCP,
+RAG, live providers, runtime subagents, persistence, or deployment. The standard
+planner and deterministic hard constraints remain authoritative.
+
 Never state or imply that a reservation, purchase, or booking has been made.
 Use language such as “proposed,” “estimated,” and “verify before purchase.”
 
