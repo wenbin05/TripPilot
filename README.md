@@ -4,15 +4,12 @@ TripPilot is a portfolio project for a constraint-aware AI travel-planning
 assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.
 
-This repository contains the product and engineering foundation for the first
-MVP through Milestone 10: the deterministic domain core, validated mock
-travel-data provider, bounded deterministic planner, local FastAPI delivery
-layer, responsive Next.js planning interface, and a recorded passing
-deterministic acceptance baseline, plus internal validator-clean candidate
-enumeration, strict internal coordinator contracts, and an isolated coordinator
-opt-in path that currently returns an explicit deterministic fallback. It
-intentionally contains no live provider, hosted-model runtime, persistence, or
-booking functionality.
+The local MVP includes a deterministic planner and validator, mock travel data,
+FastAPI backend, and responsive Next.js interface. A separate hosted coordinator
+experiment was evaluated and remains disabled by default. An internal offline
+agent loop now supports bounded inspection and validation tools; it is not wired
+into the public planner. See the [MVP completion checklist](docs/MVP_COMPLETION.md)
+for the remaining acceptance work and the boundary for later expansion.
 
 ## First MVP
 
@@ -50,7 +47,8 @@ background workers, or production deployment.
   independence is useful, JSON mock fixtures, and pytest
 - MVP frontend: Next.js 16, React 19, strict TypeScript, CSS, Vitest, and Testing
   Library
-- Later: PostgreSQL, Docker, and a hosted LLM API
+- Experimental: hosted candidate selector and an offline agent workflow
+- Later proposals: PostgreSQL, Docker, and hosted tool-assisted planning
 
 ## Repository layout
 
@@ -157,6 +155,8 @@ rejects wildcard configuration.
 
 ## Documentation
 
+- [MVP completion checklist](docs/MVP_COMPLETION.md)
+- [Post-MVP bounded agent core and staged roadmap](docs/AGENTIC_CORE.md)
 - [Local demo and September acceptance checks](docs/LOCAL_DEMO.md)
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -176,8 +176,8 @@ Milestones 1 through 6 provide the Python package, strict boundary schemas,
 deterministic itinerary validator and planner, versioned synthetic JSON snapshot,
 offline mock provider, local FastAPI endpoints, a responsive one-page Next.js
 client, and the passing deterministic acceptance baseline documented in
-`docs/DETERMINISTIC_MVP_ACCEPTANCE.md`. No database, external provider, LLM,
-authentication, booking, or deployment configuration has been added.
+`docs/DETERMINISTIC_MVP_ACCEPTANCE.md`. That baseline runs without a model or
+external travel provider. The later experiments are described below.
 
 Milestone 7 defines the bounded product, UX, architecture, security, and
 evaluation contract for a future optional single-coordinator experiment.
