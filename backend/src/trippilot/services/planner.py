@@ -978,7 +978,11 @@ def _enumerate_trip_candidates(
             return _failure(
                 PlanningFailureCode.INSUFFICIENT_BUDGET,
                 "Every complete schedulable proposal exceeds the all-in budget.",
-                (f"budget {request.budget.amount_minor} {request.budget.currency}",),
+                (
+                    f"All-in budget: {request.budget.currency} "
+                    f"{request.budget.amount_minor // 100}."
+                    f"{request.budget.amount_minor % 100:02d}",
+                ),
                 snapshot_version,
                 last_report,
             )
