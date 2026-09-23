@@ -157,6 +157,7 @@ rejects wildcard configuration.
 
 ## Documentation
 
+- [Post-MVP bounded agent core and staged roadmap](docs/AGENTIC_CORE.md)
 - [Local demo and September acceptance checks](docs/LOCAL_DEMO.md)
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
