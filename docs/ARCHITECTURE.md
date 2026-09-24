@@ -2,6 +2,14 @@
 
 ## 1. Architectural stance
 
+September 24 expansion: a separate research page calls a strict API boundary,
+which invokes a local MCP research tool through the official SDK client. The
+tool delegates to a research service, an allowlisted Wikivoyage provider,
+request-local lexical retrieval, and optional grounded Responses synthesis.
+The same MCP server runs over stdio for other hosts. No remote MCP server or
+arbitrary tool installation is accepted. Research never mutates planner records.
+See `EXTERNAL_RESEARCH.md`; the offline MVP architecture below is retained.
+
 The MVP is a modular monolith with a deterministic domain core and a thin
 Next.js client. FastAPI and Pydantic form the authoritative delivery and schema
 boundary; pure Python performs all hard constraint checks. Mock provider
@@ -239,6 +247,16 @@ failures immediately use candidate zero and expose only a stable fallback code.
 The existing `/plan` route remains offline and unchanged.
 
 ## 10. API delivery layer
+
+### Post-MVP bounded agent core
+
+`services/agent_workflow.py` adds an internal SDK-neutral action/observation
+loop, specified in `AGENTIC_CORE.md`. It accepts a server-built canonical
+context, dispatches only local candidate inspection and validation, and checks
+every final or fallback candidate with the deterministic validator. Immutable
+Pydantic state contains only bounded structured observations; canonical
+itineraries remain in server-owned bindings. There is no new public endpoint,
+provider egress, or framework dependency in this first slice.
 
 Milestone 4 exposes `GET /health` and `POST /api/v1/itineraries/plan` from the
 application entry point `trippilot.api.app:app`. The planning request is a strict
