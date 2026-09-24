@@ -2,6 +2,14 @@
 
 ## 1. Architectural stance
 
+September 24 expansion: a separate research page calls a strict API boundary,
+which invokes a local MCP research tool through the official SDK client. The
+tool delegates to a research service, an allowlisted Wikivoyage provider,
+request-local lexical retrieval, and optional grounded Responses synthesis.
+The same MCP server runs over stdio for other hosts. No remote MCP server or
+arbitrary tool installation is accepted. Research never mutates planner records.
+See `EXTERNAL_RESEARCH.md`; the offline MVP architecture below is retained.
+
 The MVP is a modular monolith with a deterministic domain core and a thin
 Next.js client. FastAPI and Pydantic form the authoritative delivery and schema
 boundary; pure Python performs all hard constraint checks. Mock provider

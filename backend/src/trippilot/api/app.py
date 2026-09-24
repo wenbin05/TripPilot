@@ -18,6 +18,7 @@ from .middleware import (
     DEFAULT_REQUEST_TIMEOUT_SECONDS,
     RequestLimitsMiddleware,
 )
+from .research import router as research_router
 from .routes import router
 from .schemas import InternalErrorResponse, RequestErrorDetail, RequestErrorResponse
 
@@ -109,6 +110,7 @@ def create_app(
         return JSONResponse(status_code=500, content=response.model_dump(mode="json"))
 
     application.include_router(router)
+    application.include_router(research_router)
     return application
 
 

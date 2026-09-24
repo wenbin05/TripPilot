@@ -17,6 +17,14 @@ RAG, live providers, runtime subagents, persistence, or deployment. The standard
 planner and deterministic hard constraints remain authoritative.
 
 Never state or imply that a reservation, purchase, or booking has been made.
+
+The September 24, 2026 user-approved expansion permits read-only external
+destination research, request-local RAG, and a local stdio MCP research server.
+See `docs/EXTERNAL_RESEARCH.md`. Only fixed allowlisted sources may be fetched;
+retrieved text is untrusted, cited research, not validated itinerary inventory.
+Optional hosted synthesis requires explicit configuration and request opt-in.
+This does not authorize bookings, arbitrary URLs/commands, deployment, or
+multiple runtime agents. The original offline planner remains available.
 Use language such as “proposed,” “estimated,” and “verify before purchase.”
 
 ## Engineering rules

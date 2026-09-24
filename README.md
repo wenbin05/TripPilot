@@ -1,5 +1,14 @@
 # TripPilot
 
+## New: external destination research
+
+Open `/research` to retrieve live Wikivoyage evidence for a destination and
+question, with revision citations and optional explicitly enabled AI synthesis.
+The research API consumes a real MCP tool contract; the same server is available
+over stdio for MCP hosts. See [setup, design and limits](docs/EXTERNAL_RESEARCH.md).
+This is separate from the mock itinerary planner described below: real-time
+bookable inventory and validated live prices are not implemented.
+
 TripPilot is a portfolio project for a constraint-aware AI travel-planning
 assistant. Its initial audience is university students arranging affordable
 short trips around Canada and nearby US destinations.

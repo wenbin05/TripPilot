@@ -223,6 +223,20 @@ this field must not be presented as satisfied.
 
 ## 14. Open product decisions
 
+### Approved external research expansion (2026-09-24)
+
+The user explicitly approved RAG and MCP with external sources. This supersedes
+the deferral of those two capabilities for the new research experience, not the
+historical MVP contract. Users may research any named English Wikivoyage guide
+and ask a bounded question. The system fetches current guide content, chunks
+and ranks passages, and returns citations with revision and retrieval time.
+Optional model synthesis must cite retrieved passage IDs and be labelled as
+unverified; absent configuration returns evidence, never invented answers.
+The web API uses the same tool contract exposed to MCP clients. No live travel
+inventory is inferred from prose: transport, lodging, prices, operating windows,
+and all-in itinerary validation remain in the separate mock planner.
+See `EXTERNAL_RESEARCH.md` for acceptance and security limits.
+
 ### Approved post-MVP direction (2026-09-23)
 
 Build toward an evaluated single-agent planning workflow. The first slice is
