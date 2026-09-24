@@ -25,6 +25,14 @@ The final integration PR must target main.
 - npm reported install-script policy warnings for esbuild, fsevents, and
   unrs-resolver. They did not fail installation or the build.
 
+### CI confirmation — September 24, 2026
+
+Both Backend and Frontend jobs passed in
+[GitHub Actions run 35904988409](https://github.com/wenbin05/TripPilot/actions/runs/35904988409)
+for acceptance commit `893d21483b3eaa4d7d4fc1149c87e4c13ded4f89`.
+[PR #8](https://github.com/wenbin05/TripPilot/pull/8) targets main and remains
+open as of this confirmation. Green CI does not close the manual zoom gate.
+
 ## Browser checks
 
 Used a fresh production frontend on `127.0.0.1:3010` and fresh API on
