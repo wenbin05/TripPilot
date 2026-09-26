@@ -2,6 +2,12 @@
 
 ## 1. Product summary
 
+September 26 expansion: the main page now offers a live place-backed draft via
+the free Geoapify project and its remote MCP tools. The offline MVP below is
+preserved at `/demo`. `docs/LIVE_PLANNER.md` specifies the new acceptance scope:
+real places and walking times, not complete live transport/lodging inventory.
+Unknown costs and hours block any claim of full feasibility or budget validity.
+
 TripPilot is a constraint-aware travel-planning assistant for university
 students planning affordable short trips around Canada and nearby US
 destinations. The first MVP demonstrates that a user can provide practical

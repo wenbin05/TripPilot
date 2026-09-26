@@ -27,6 +27,13 @@ This does not authorize bookings, arbitrary URLs/commands, deployment, or
 multiple runtime agents. The original offline planner remains available.
 Use language such as “proposed,” “estimated,” and “verify before purchase.”
 
+The September 26, 2026 user-approved free-provider expansion also permits the
+fixed Geoapify remote MCP endpoint for read-only city/place lookup and walking
+matrices in the main planner. See `docs/LIVE_PLANNER.md`. Live results are
+incomplete drafts, never validator-clean all-in trips: unknown prices, hours,
+intercity transport and lodging must remain explicit. No silent mock fallback,
+paid LLM calls, booking tools or deployment is authorized by this slice.
+
 ## Engineering rules
 
 - Put domain rules in pure, deterministic Python under

@@ -917,6 +917,42 @@ footer {
   }
 }
 
+.liveResult {
+  margin-block: 2rem;
+  overflow-wrap: anywhere;
+}
+
+.liveGaps {
+  padding: 1rem 1.25rem;
+  margin-block: 1.5rem;
+  border: 1px solid #d7c596;
+  border-radius: 12px;
+  background: #fff9eb;
+}
+
+.liveDay {
+  padding: 1.25rem;
+  margin-block: 1rem;
+  border: 1px solid #dbe2de;
+  border-radius: 16px;
+  background: white;
+}
+
+.liveDay ol {
+  padding-left: 1.25rem;
+}
+
+.liveDay li + li {
+  margin-top: 1.5rem;
+  border-top: 1px solid #dbe2de;
+  padding-top: 1rem;
+}
+
+.liveDay h4 {
+  margin-block: 0.5rem;
+  font-size: 1.125rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

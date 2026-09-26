@@ -24,6 +24,8 @@ import {
 import { formatLocalDate, humanize } from "@/lib/format";
 import { EstimateBanner } from "./EstimateBanner";
 import { ItineraryResult, PlanningFailure } from "./PlanningResult";
+import { createLivePlan, type LiveDraft } from "@/lib/live-planner";
+import { LiveResult } from "./LiveResult";
 
 const PACE_DESCRIPTIONS = {
   relaxed: "Usually 1–2 primary activities on a full day",
@@ -85,13 +87,14 @@ function FieldError({
   ) : null;
 }
 
-export function TripPlanner() {
+export function TripPlanner({ live = false }: { live?: boolean }) {
   const [values, setValues] = useState<FormValues>(INITIAL_FORM_VALUES);
   const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<"idle" | "loading" | "unexpected">(
     "idle",
   );
   const [result, setResult] = useState<PlanningResponse | null>(null);
+  const [liveResult, setLiveResult] = useState<LiveDraft | null>(null);
   const [errorFocusRequest, setErrorFocusRequest] = useState(0);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -133,8 +136,14 @@ export function TripPlanner() {
 
     setErrors({});
     setResult(null);
+    setLiveResult(null);
     setStatus("loading");
     try {
+      if (live) {
+        setLiveResult(await createLivePlan(toApiRequest(values)));
+        setStatus("idle");
+        return;
+      }
       const response = values.coordinatorOptIn
         ? await createCoordinatorPlan(toCoordinatorApiRequest(values))
         : await createPlan(toApiRequest(values));
@@ -178,16 +187,33 @@ export function TripPlanner() {
         <a className="brand" href="#planner">
           TripPilot
         </a>
-        <span>Deterministic student trip planner</span>
+        <span>
+          {live
+            ? "Live places · Student trip planner"
+            : "Deterministic student trip planner"}
+        </span>
       </div>
-      <EstimateBanner />
+      {live ? (
+        <aside className="estimateBanner">
+          <div>
+            <strong>Live draft · Not a complete trip yet</strong>
+            <p>
+              Real places and walking estimates. Prices, opening hours, stays
+              and intercity travel still need verification. Nothing is booked.
+            </p>
+          </div>
+        </aside>
+      ) : (
+        <EstimateBanner />
+      )}
       <div className="plannerShell" id="planner">
         <header className="hero">
           <p className="eyebrow">One city · One to four days</p>
           <h1>Plan around what matters.</h1>
           <p>
-            Set the essentials once. TripPilot builds a clear, budget-aware
-            proposal and checks every hard constraint.
+            {live
+              ? "Discover real places and a provisional day-by-day walking plan. Your budget is recorded, but cannot be checked until all trip costs are known."
+              : "Set the essentials once. TripPilot builds a clear, budget-aware proposal and checks every hard constraint."}
           </p>
         </header>
 
@@ -234,7 +260,9 @@ export function TripPlanner() {
                   <div>
                     <h2 id="trip-details-title">Trip details</h2>
                     <p>
-                      Plain place labels only—there is no live autocomplete.
+                      {live
+                        ? "Include province/state and country to resolve the right city. Canada and US cities supported."
+                        : "Plain place labels only—there is no live autocomplete."}
                     </p>
                   </div>
                 </div>
@@ -254,7 +282,9 @@ export function TripPlanner() {
                       placeholder="Kingston, Ontario"
                     />
                     <p className="hint" id="origin-hint">
-                      Where the trip starts and returns.
+                      {live
+                        ? "Recorded for later; intercity travel is not planned yet."
+                        : "Where the trip starts and returns."}
                     </p>
                     <FieldError field="origin" errors={errors} />
                   </div>
@@ -275,7 +305,9 @@ export function TripPlanner() {
                       placeholder="Toronto, Ontario"
                     />
                     <p className="hint" id="destination-hint">
-                      Exactly one destination city.
+                      {live
+                        ? "One city, with places within 5 km of its centre."
+                        : "Exactly one destination city."}
                     </p>
                     <FieldError field="destination" errors={errors} />
                   </div>
@@ -397,8 +429,9 @@ export function TripPlanner() {
                       </select>
                     </div>
                     <p className="hint" id="budget-hint">
-                      Include transport, stay, activities, meals, fees, and
-                      taxes.
+                      {live
+                        ? "Your all-in target, not a price quote. Live budget compliance is not yet verified."
+                        : "Include transport, stay, activities, meals, fees, and taxes."}
                     </p>
                     <FieldError field="budget" errors={errors} />
                     <FieldError field="currency" errors={errors} />
@@ -495,73 +528,78 @@ export function TripPlanner() {
                   </div>
                   <FieldError field="interests" errors={errors} />
                 </fieldset>
-                <div className="experimentOption">
-                  <label className="experimentToggle">
-                    <input
-                      type="checkbox"
-                      checked={values.coordinatorOptIn}
-                      onChange={(event) =>
-                        update("coordinatorOptIn", event.target.checked)
-                      }
-                      aria-expanded={values.coordinatorOptIn}
-                      aria-controls="preference-notes-panel"
-                    />
-                    <span>
-                      <strong>Try coordinator-assisted experiment</strong>
-                      <small>
-                        Optional. The standard deterministic planner remains the
-                        default.
-                      </small>
-                    </span>
-                  </label>
-                  {values.coordinatorOptIn ? (
-                    <div
-                      className="preferencePanel"
-                      id="preference-notes-panel"
-                    >
-                      <div className="field">
-                        <label htmlFor="preferenceNotes">
-                          Extra preferences <span>(optional)</span>
-                        </label>
-                        <textarea
-                          id="preferenceNotes"
-                          rows={4}
-                          value={values.preferenceNotes}
-                          onChange={(event) =>
-                            update("preferenceNotes", event.target.value)
-                          }
-                          aria-invalid={Boolean(errors.preferenceNotes)}
-                          aria-describedby={describedBy(
-                            "preferenceNotes",
-                            errors,
-                            "preference-notes-hint preference-notes-scope preference-notes-count",
-                          )}
-                          placeholder="For example: Prefer quieter stays and varied daytime activities."
-                        />
-                        <p className="hint" id="preference-notes-hint">
-                          These notes only help rank already-valid proposals.
-                        </p>
-                        <p
-                          className="experimentScope"
-                          id="preference-notes-scope"
-                        >
-                          When a hosted model is configured, these notes may be
-                          sent to it. Do not include personal or sensitive
-                          information. Notes cannot request bookings, payments,
-                          multiple cities, visa advice, or live availability.
-                        </p>
-                        <p
-                          className="characterCount"
-                          id="preference-notes-count"
-                        >
-                          {preferenceNoteCodePointCount(values.preferenceNotes)}{" "}
-                          / 300 characters
-                        </p>
-                        <FieldError field="preferenceNotes" errors={errors} />
+                {!live && (
+                  <div className="experimentOption">
+                    <label className="experimentToggle">
+                      <input
+                        type="checkbox"
+                        checked={values.coordinatorOptIn}
+                        onChange={(event) =>
+                          update("coordinatorOptIn", event.target.checked)
+                        }
+                        aria-expanded={values.coordinatorOptIn}
+                        aria-controls="preference-notes-panel"
+                      />
+                      <span>
+                        <strong>Try coordinator-assisted experiment</strong>
+                        <small>
+                          Optional. The standard deterministic planner remains
+                          the default.
+                        </small>
+                      </span>
+                    </label>
+                    {values.coordinatorOptIn ? (
+                      <div
+                        className="preferencePanel"
+                        id="preference-notes-panel"
+                      >
+                        <div className="field">
+                          <label htmlFor="preferenceNotes">
+                            Extra preferences <span>(optional)</span>
+                          </label>
+                          <textarea
+                            id="preferenceNotes"
+                            rows={4}
+                            value={values.preferenceNotes}
+                            onChange={(event) =>
+                              update("preferenceNotes", event.target.value)
+                            }
+                            aria-invalid={Boolean(errors.preferenceNotes)}
+                            aria-describedby={describedBy(
+                              "preferenceNotes",
+                              errors,
+                              "preference-notes-hint preference-notes-scope preference-notes-count",
+                            )}
+                            placeholder="For example: Prefer quieter stays and varied daytime activities."
+                          />
+                          <p className="hint" id="preference-notes-hint">
+                            These notes only help rank already-valid proposals.
+                          </p>
+                          <p
+                            className="experimentScope"
+                            id="preference-notes-scope"
+                          >
+                            When a hosted model is configured, these notes may
+                            be sent to it. Do not include personal or sensitive
+                            information. Notes cannot request bookings,
+                            payments, multiple cities, visa advice, or live
+                            availability.
+                          </p>
+                          <p
+                            className="characterCount"
+                            id="preference-notes-count"
+                          >
+                            {preferenceNoteCodePointCount(
+                              values.preferenceNotes,
+                            )}{" "}
+                            / 300 characters
+                          </p>
+                          <FieldError field="preferenceNotes" errors={errors} />
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                </div>
+                    ) : null}
+                  </div>
+                )}
               </section>
             </div>
 
@@ -621,9 +659,11 @@ export function TripPlanner() {
                 <div>
                   <dt>Planning approach</dt>
                   <dd>
-                    {values.coordinatorOptIn
-                      ? "Coordinator-assisted experiment"
-                      : "Standard"}
+                    {live
+                      ? "Live places and walking draft"
+                      : values.coordinatorOptIn
+                        ? "Coordinator-assisted experiment"
+                        : "Standard"}
                   </dd>
                 </div>
               </dl>
@@ -632,7 +672,7 @@ export function TripPlanner() {
                 type="submit"
                 disabled={status === "loading"}
               >
-                Create proposed itinerary
+                {live ? "Create live draft" : "Create proposed itinerary"}
               </button>
             </section>
           </div>
@@ -644,7 +684,11 @@ export function TripPlanner() {
               <span className="spinner" aria-hidden="true" />
               <div>
                 <h2>Creating your proposal</h2>
-                <p>Checking your trip details, timing, and estimated costs…</p>
+                <p>
+                  {live
+                    ? "Finding real places and walking estimates…"
+                    : "Checking your trip details, timing, and estimated costs…"}
+                </p>
               </div>
             </div>
           ) : null}
@@ -659,6 +703,7 @@ export function TripPlanner() {
           ) : null}
         </div>
       </div>
+      {liveResult && <LiveResult result={liveResult} />}
       {result?.status === "success" ? (
         <ItineraryResult result={result} />
       ) : null}
@@ -667,8 +712,9 @@ export function TripPlanner() {
       ) : null}
       <footer>
         <p>
-          TripPilot MVP · Offline mock travel data · No accounts, payments, or
-          booking actions
+          {live
+            ? "TripPilot live draft · No accounts, payments, or booking actions"
+            : "TripPilot MVP · Offline mock travel data · No accounts, payments, or booking actions"}
         </p>
       </footer>
     </>

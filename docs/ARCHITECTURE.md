@@ -2,6 +2,14 @@
 
 ## 1. Architectural stance
 
+September 26 expansion: `/` calls `/api/v1/itineraries/live-plan`. A bounded
+service invokes a narrow live-provider protocol, implemented with fixed-endpoint
+Geoapify MCP JSON-RPC calls. Pure `domain/live_draft.py` schedules unique stops
+with walking-time gaps. The strict live response is explicitly a draft, not the
+offline validator's success schema. No unknown cost/hour is cast into a priced,
+available mock record. `/demo` and the original `/plan` remain unchanged. See
+`LIVE_PLANNER.md` for limits, credential handling and outstanding gaps.
+
 September 24 expansion: a separate research page calls a strict API boundary,
 which invokes a local MCP research tool through the official SDK client. The
 tool delegates to a research service, an allowlisted Wikivoyage provider,

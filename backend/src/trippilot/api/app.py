@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .live import router as live_router
 from .middleware import (
     DEFAULT_MAX_REQUEST_BYTES,
     DEFAULT_REQUEST_TIMEOUT_SECONDS,
@@ -56,10 +57,10 @@ def create_app(
 ) -> FastAPI:
     application = FastAPI(
         title="TripPilot API",
-        summary="Offline delivery layer for proposed deterministic itineraries.",
+        summary="Live place-backed drafts and offline deterministic itineraries.",
         description=(
-            "Plans one-to-four-day, single-destination proposed trips using "
-            "versioned mock data. Nothing is booked or reserved."
+            "Plans one-to-four-day, single-destination drafts using live places, "
+            "with a separate versioned mock-data demo. Nothing is booked or reserved."
         ),
         version="0.1.0",
         debug=False,
@@ -111,6 +112,7 @@ def create_app(
 
     application.include_router(router)
     application.include_router(research_router)
+    application.include_router(live_router)
     return application
 
 

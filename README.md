@@ -1,5 +1,17 @@
 # TripPilot
 
+## New: live main planner
+
+The homepage now builds provisional daily plans with real Geoapify places and
+walking estimates through its remote MCP tools. Put the server-only
+`TRIPPILOT_GEOAPIFY_API_KEY` in `backend/.env`; no LLM key is needed for this
+flow. The offline mock planner is still available at `/demo`.
+
+This is the first live-inventory slice, **not a complete live trip**. Unknown
+prices, opening hours, lodging and intercity transport remain explicit; no
+budget-pass claim or silent mock fallback is made. See
+[live setup, limits and next work](docs/LIVE_PLANNER.md).
+
 ## New: external destination research
 
 Open `/research` to retrieve live Wikivoyage evidence for a destination and
