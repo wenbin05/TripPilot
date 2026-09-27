@@ -248,3 +248,114 @@ def test_invalid_route_matrix_is_rejected(defect):
                 GeoapifyProvider("fakekey", httpx.MockTransport(malformed)),
             )
         )
+
+
+def test_api_budget_excess_short_circuits_before_key_or_provider(monkeypatch):
+    def forbidden():
+        raise AssertionError("No credential or provider needed")
+
+    monkeypatch.setattr(live, "load_geoapify_key", forbidden)
+    response = TestClient(create_app()).post(
+        "/api/v1/itineraries/live-plan",
+        json={
+            **BODY,
+            "cost_estimates": {"transport": 50001},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "budget_exceeded"
+    assert payload["budget_estimate"]["known_subtotal_minor"] == 50001
+    assert payload["budget_estimate"]["estimated_total_minor"] is None
+    assert not payload["stops"]
+
+
+def test_api_full_entered_costs_and_real_protocol_window(monkeypatch):
+    monkeypatch.setattr(live, "load_geoapify_key", lambda: "fakekey")
+    monkeypatch.setattr(live, "allowance", LocalAllowance())
+    monkeypatch.setattr(
+        live,
+        "GeoapifyProvider",
+        lambda key: GeoapifyProvider(key, httpx.MockTransport(handler)),
+    )
+    response = TestClient(create_app()).post(
+        "/api/v1/itineraries/live-plan",
+        json={
+            **BODY,
+            "travellers": 3,
+            "travel_times": {
+                "arrival_time": "13:00",
+                "departure_time": "12:00",
+                "transfer_buffer_minutes": 60,
+            },
+            "cost_estimates": {
+                "transport": 10000,
+                "accommodation": 20000,
+                "activities": 0,
+                "meals": 15000,
+                "fees_taxes": 5000,
+            },
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "draft"
+    assert payload["travel_window"]["available_from"] == "2026-10-10T14:00:00-04:00"
+    assert payload["travel_window"]["available_until"] == "2026-10-11T11:00:00-04:00"
+    assert payload["stops"][0]["start"] == "2026-10-10T14:00:00-04:00"
+    assert payload["budget_estimate"]["estimated_total_minor"] == 50000
+    assert payload["budget_estimate"]["remaining_minor"] == 0
+    assert payload["budget_status"] == "not_verified"
+    assert payload["all_in_total_minor"] is None
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"cost_estimates": {"transport": -1}},
+        {"cost_estimates": {"transport": True}},
+        {"cost_estimates": {"transport": "100"}},
+        {"cost_estimates": {"transport": 1.5}},
+        {"cost_estimates": {"currency": "EUR"}},
+        {"travel_times": {"arrival_time": "13:00"}},
+        {"travel_times": {"arrival_time": "13:00Z", "departure_time": "17:00"}},
+        {
+            "travel_times": {
+                "arrival_time": "13:00",
+                "departure_time": "17:00",
+                "transfer_buffer_minutes": True,
+            }
+        },
+    ],
+)
+def test_api_strict_live_input_boundary(extra):
+    response = TestClient(create_app()).post(
+        "/api/v1/itineraries/live-plan", json={**BODY, **extra}
+    )
+    assert response.status_code == 422
+
+
+def test_api_invalid_window_avoids_places_and_routes(monkeypatch):
+    seen = []
+
+    def track(request):
+        seen.append(json.loads(request.content)["params"]["name"])
+        return handler(request)
+
+    monkeypatch.setattr(live, "load_geoapify_key", lambda: "fakekey")
+    monkeypatch.setattr(live, "allowance", LocalAllowance())
+    monkeypatch.setattr(
+        live,
+        "GeoapifyProvider",
+        lambda key: GeoapifyProvider(key, httpx.MockTransport(track)),
+    )
+    response = TestClient(create_app()).post(
+        "/api/v1/itineraries/live-plan",
+        json={
+            **BODY,
+            "end_date": BODY["start_date"],
+            "travel_times": {"arrival_time": "17:00", "departure_time": "09:00"},
+        },
+    )
+    assert response.json()["status"] == "invalid_window"
+    assert seen == ["geocode_address"]

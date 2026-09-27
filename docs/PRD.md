@@ -7,6 +7,11 @@ the free Geoapify project and its remote MCP tools. The offline MVP below is
 preserved at `/demo`. `docs/LIVE_PLANNER.md` specifies the new acceptance scope:
 real places and walking times, not complete live transport/lodging inventory.
 Unknown costs and hours block any claim of full feasibility or budget validity.
+The next approved slice accepts optional user-entered arrival/departure times
+and whole-trip, all-traveller category cost estimates. It checks those inputs
+deterministically but never promotes them to provider-verified prices or a
+fully valid live trip. Over-budget entered subtotals block draft generation;
+incomplete estimates stay explicitly incomplete. See `LIVE_PLANNER.md`.
 
 TripPilot is a constraint-aware travel-planning assistant for university
 students planning affordable short trips around Canada and nearby US

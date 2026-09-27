@@ -5,6 +5,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from math import ceil
 from zoneinfo import ZoneInfo
 
+from .live_constraints import TravelWindow
+
 
 @dataclass(frozen=True)
 class DraftStop:
@@ -22,6 +24,7 @@ def schedule_draft(
     timezone: str,
     daily_target: int,
     travel_seconds: tuple[tuple[float | None, ...], ...],
+    window: TravelWindow | None = None,
 ) -> tuple[DraftStop, ...]:
     """No repeated places; reserve actual route time + 30-minute breaks.
 
@@ -47,6 +50,9 @@ def schedule_draft(
         ):
             raise ValueError("Nonexistent local time")
         limit = datetime.combine(day, time(18), zone).astimezone(UTC)
+        if window is not None:
+            cursor = max(cursor, window.available_from.astimezone(UTC))
+            limit = min(limit, window.available_until.astimezone(UTC))
         previous: int | None = None
         # Spread limited candidates across every requested day before adding density.
         target = min(daily_target, ceil(len(remaining) / (days - offset)))

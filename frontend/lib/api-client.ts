@@ -36,7 +36,9 @@ export class ApiRequestError extends Error {
   }
 }
 
-function isValidationError(value: unknown): value is RequestValidationError {
+export function isValidationError(
+  value: unknown,
+): value is RequestValidationError {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<RequestValidationError>;
   return (

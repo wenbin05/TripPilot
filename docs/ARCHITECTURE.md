@@ -9,6 +9,13 @@ with walking-time gaps. The strict live response is explicitly a draft, not the
 offline validator's success schema. No unknown cost/hour is cast into a priced,
 available mock record. `/demo` and the original `/plan` remain unchanged. See
 `LIVE_PLANNER.md` for limits, credential handling and outstanding gaps.
+The follow-on optional `LivePlanRequest` contract carries user travel times and
+nullable category estimates through strict schemas in `services/live_inputs.py`.
+Pure `domain/live_constraints.py` performs timezone/DST window resolution and
+integer budget checks. The API rejects known over-budget estimates before any
+provider call; the live service applies resolved windows to deterministic stop
+scheduling. Separate response fields retain user-entered provenance and never
+change the provider-budget status or the original offline validator.
 
 September 24 expansion: a separate research page calls a strict API boundary,
 which invokes a local MCP research tool through the official SDK client. The

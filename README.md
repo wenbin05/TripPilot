@@ -11,6 +11,9 @@ This is the first live-inventory slice, **not a complete live trip**. Unknown
 prices, opening hours, lodging and intercity transport remain explicit; no
 budget-pass claim or silent mock fallback is made. See
 [live setup, limits and next work](docs/LIVE_PLANNER.md).
+Optional arrival/departure times and whole-trip category cost estimates now
+support deterministic checks against **your inputs**, with explicit provenance.
+These are not verified provider schedules or prices.
 
 ## New: external destination research
 

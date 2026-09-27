@@ -9,6 +9,7 @@ from typing import Literal, Self
 from pydantic import AwareDatetime, Field, model_validator
 
 from trippilot.domain import TripRequest
+from trippilot.domain.live_constraints import InvalidTravelWindow, resolve_travel_window
 from trippilot.domain.live_draft import schedule_draft
 from trippilot.providers.geoapify import (
     CATEGORIES,
@@ -17,6 +18,8 @@ from trippilot.providers.geoapify import (
     Place,
     StrictRecord,
 )
+
+from .live_inputs import BudgetEstimate, TravelTimes, TravelWindowResponse
 
 
 class LiveStop(StrictRecord):
@@ -41,13 +44,22 @@ class LiveStop(StrictRecord):
 
 
 class LiveDraft(StrictRecord):
-    status: Literal["draft", "unavailable", "ambiguous_destination", "no_places"]
+    status: Literal[
+        "draft",
+        "unavailable",
+        "ambiguous_destination",
+        "no_places",
+        "invalid_window",
+        "budget_exceeded",
+    ]
     city: City | None = None
     destination_choices: tuple[str, ...] = Field(default=(), max_length=5)
     stops: tuple[LiveStop, ...] = Field(default=(), max_length=8)
     retrieved_at: AwareDatetime | None = None
     budget_status: Literal["not_verified"] = "not_verified"
     all_in_total_minor: None = None
+    budget_estimate: BudgetEstimate | None = None
+    travel_window: TravelWindowResponse | None = None
     notice: str
     missing: tuple[str, ...] = (
         "Arrival and departure times and fares",
@@ -91,7 +103,10 @@ class LocalAllowance:
 
 
 async def build_live_draft(
-    request: TripRequest, provider: LivePlacesProvider
+    request: TripRequest,
+    provider: LivePlacesProvider,
+    *,
+    travel_times: TravelTimes | None = None,
 ) -> LiveDraft:
     cities = await provider.cities(request.destination)
     if len(cities) != 1:
@@ -101,6 +116,19 @@ async def build_live_draft(
             notice="Enter a specific city, province/state and country, then try again.",
         )
     city = cities[0]
+    window = None
+    if travel_times is not None:
+        try:
+            window = resolve_travel_window(
+                request.start_date,
+                request.end_date,
+                travel_times.arrival_time,
+                travel_times.departure_time,
+                city.timezone,
+                travel_times.transfer_buffer_minutes,
+            )
+        except InvalidTravelWindow as error:
+            return LiveDraft(status="invalid_window", city=city, notice=str(error))
     # Up to three category calls, interleaved for variety rather than letting
     # the first interest consume the entire eight-place candidate allowance.
     categories = tuple(dict.fromkeys(CATEGORIES[i.value] for i in request.interests))[
@@ -134,19 +162,23 @@ async def build_live_draft(
             tuple(None if cell is None else cell.time for cell in row)
             for row in matrix.sources_to_targets
         ),
+        window=window,
     )
     if not stops:
         return LiveDraft(
             status="no_places",
             city=city,
+            travel_window=TravelWindowResponse.from_domain(window) if window else None,
             notice=(
-                "No stops fit the provisional 09:00–18:00 day. Try an earlier start."
+                "No 60-minute visits fit the daytime activity window after travel "
+                "buffers and your earliest start. Adjust the times or dates."
             ),
         )
     return LiveDraft(
         status="draft",
         city=city,
         retrieved_at=datetime.now(UTC),
+        travel_window=TravelWindowResponse.from_domain(window) if window else None,
         stops=tuple(
             LiveStop(
                 place=places[s.place_index],
@@ -160,10 +192,22 @@ async def build_live_draft(
         notice=(
             "Live places and estimated walking routes; this is an incomplete draft, "
             "not a validated all-in trip. Visits are estimated at 60 minutes, with "
-            "30-minute breaks. Days assume you are already in the city, 09:00–18:00 "
-            "or your later start. Up to eight unique places and the first three "
+            "30-minute breaks. The 09:00–18:00 daytime envelope is constrained by "
+            "your earliest start and any entered arrival/departure transfer buffers. "
+            "Without travel times it assumes you are already in the city. "
+            "Up to eight unique places and the first three "
             "interest categories are considered; some days may be sparse or empty. "
             "No claim of affordability, opening hours, accessibility or availability. "
             "Nothing has been booked. Verify before purchase."
+        ),
+        missing=(
+            ("Provider-confirmed transport schedules and transfer durations",)
+            if window
+            else ("Arrival and departure times and fares",)
+        )
+        + (
+            "Provider-confirmed accommodation availability and prices",
+            "Provider-confirmed activity and meal prices, fees and taxes",
+            "Date-specific opening hours",
         ),
     )

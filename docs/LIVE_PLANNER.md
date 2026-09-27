@@ -1,4 +1,4 @@
-# Live main planner — free-provider first slice
+# Live main planner — places, travel windows and entered costs
 
 Approved by the user on September 26, 2026: replace fixture-only main planning
 with external places/routes, starting with a free Geoapify account. This changes
@@ -22,19 +22,65 @@ targets of two/three/four stops. Visits are explicitly estimated at 60 minutes;
 and all other categories currently use the same provisional daytime envelope;
 venue opening hours are not interpreted or validated.
 
-This is not yet a complete live trip planner. It assumes the traveller is in
-the city for the provisional 09:00–18:00 day (or later requested start). It
-does not know arrival/departure times, intercity fares, lodging prices or
+This is not yet a complete live trip planner. Without entered travel times it
+assumes the traveller is in the city for the provisional 09:00–18:00 day (or
+later requested start). Optional travel times constrain that envelope, as
+described below. There are still no verified intercity fares, lodging prices or
 availability, meal/activity costs, fees/taxes, or date-specific opening hours.
-Origin, traveller count and the all-in budget are collected but do not establish
-live transport or affordability. No price is filled with zero, no full validity
-flag is emitted, and `all_in_total_minor` remains null with budget `not_verified`.
+No unknown price is filled with zero, no full validity flag is emitted, and
+the provider-backed `all_in_total_minor` remains null with budget `not_verified`.
 Nothing is booked. Route times are walking estimates, not transit schedules or
 accessibility guarantees. Venue data may be incomplete or stale.
 
 The offline, fully costed fixture demonstration remains at `/demo`; its endpoint
 and deterministic validator are unchanged. Live failures never substitute mock
 places. Research/RAG remains available separately, not an inventory authority.
+
+## User-entered travel window and cost checks
+
+The next user-approved slice adds a collapsed optional form section. The API's
+`LivePlanRequest` extends the old request without changing `/plan` or `/demo`:
+
+- `travel_times`: arrival time on `start_date`, departure time on `end_date`,
+  both destination-local clock times, plus `transfer_buffer_minutes` (0–240,
+  default 60). Both times are required when the object is supplied.
+- `cost_estimates`: transport, accommodation, activities, meals, and fees/taxes,
+  each nullable non-negative integer minor units. All values are **whole-trip
+  totals for all travellers** in the request currency. There is no implicit
+  per-person/per-night multiplication or currency conversion. Blank is unknown;
+  explicit zero is allowed but represents the user's assumption, not free
+  admission verified by the provider. Do not double-count taxes.
+
+Pure `domain/live_constraints.py` resolves local times against the provider's
+IANA timezone. Nonexistent/ambiguous clock-change times are rejected rather than
+guessed. Transfer buffers are elapsed minutes after arrival and before departure;
+the global usable window constrains every activity, including cross-midnight
+buffers and partial days. Reversed/empty windows return `invalid_window` after
+city lookup, without spending further calls on places/matrices. A valid but too
+short window returns no visits, never relaxes constraints. The default buffer
+is a visible user-adjustable allowance, not a computed airport/station transfer.
+
+Pure integer arithmetic checks the five category totals against the all-in
+budget. `budget_estimate` separately reports provenance (`user_entered` basis),
+category values, known subtotal, missing categories, total when complete, and
+remaining amount only when complete. Status is `incomplete`,
+`within_entered_estimate`, or `over_entered_estimate`. If even the known subtotal
+exceeds budget, the API returns `budget_exceeded` with no itinerary and makes
+**no provider calls**. Equality to budget passes the entered-estimate check only.
+Known costs are not reassigned to individual venues or used to claim an actual
+all-in trip price. Supplied costs remain visible even if live retrieval fails.
+
+Each entered category and budget is capped at 1,000,000,000,000 minor units;
+five-category sums stay safely within the frontend's exact integer range.
+Strict schemas reject floats, booleans, unknown fields and offset clock times.
+The response's separate `travel_window` contains aware resolved timestamps,
+buffer and user-entered provenance. No information is persisted. Editing the
+form clears a prior live result, and stale in-flight results are not displayed.
+
+Passing these checks means only that the provisional activity schedule fits
+the supplied travel window and the supplied estimates fit the budget. It does
+not establish ticket validity, departure punctuality, hotel availability, venue
+opening hours, actual prices, meal timing or a fully validated live trip.
 
 ## Local setup and secrets
 
@@ -103,8 +149,18 @@ Verification: 417 backend tests and 74 frontend tests, Ruff, Pyright, ESLint,
 TypeScript, Prettier and the production build. No package/lockfile or runtime
 dependency changes were required.
 
-Next: add user-confirmed arrival/departure windows and priced budget inputs,
-then source date-specific transport schedules and reliable venue hours. Free
+Travel-window/entered-cost follow-up verification: 446 backend and 83 frontend
+tests passed, along with the same static checks, formatting and production
+build. The main browser form generated a Montreal draft for October 10–11:
+arrival 13:00, departure 12:00 and 60-minute buffers resolved to an activity
+window of 14:00 on the first day through 11:00 on the last. All three returned
+visits stayed inside it. CAD 470 in entered category totals against a CAD 500
+budget displayed CAD 30 remaining, labelled as user estimates. Tests additionally
+cover equality/excess by one minor unit, incomplete costs, explicit zero,
+no traveller multiplication, reversed/too-short windows, cross-midnight buffers,
+and nonexistent/ambiguous DST times. No paid LLM calls or new dependencies.
+
+Next: source date-specific transport schedules and reliable venue hours. Free
 VIA GTFS can support rail timetables but does not include fares. Hotel and
 intercity quotes need a separate provider/access decision. Do not call this
 slice a fully live, all-in validated itinerary until those gaps are closed.

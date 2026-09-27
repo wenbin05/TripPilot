@@ -26,6 +26,8 @@ import { EstimateBanner } from "./EstimateBanner";
 import { ItineraryResult, PlanningFailure } from "./PlanningResult";
 import { createLivePlan, type LiveDraft } from "@/lib/live-planner";
 import { LiveResult } from "./LiveResult";
+import { LiveInputs } from "./LiveInputs";
+import { INITIAL_LIVE_OPTIONS, toLiveInputs } from "@/lib/live-inputs";
 
 const PACE_DESCRIPTIONS = {
   relaxed: "Usually 1–2 primary activities on a full day",
@@ -95,6 +97,8 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
   );
   const [result, setResult] = useState<PlanningResponse | null>(null);
   const [liveResult, setLiveResult] = useState<LiveDraft | null>(null);
+  const [liveOptions, setLiveOptions] = useState(INITIAL_LIVE_OPTIONS);
+  const liveRequestVersion = useRef(0);
   const [errorFocusRequest, setErrorFocusRequest] = useState(0);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +107,10 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
   }, [errorFocusRequest]);
 
   function update<K extends keyof FormValues>(field: K, value: FormValues[K]) {
+    if (live) {
+      liveRequestVersion.current++;
+      setLiveResult(null);
+    }
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({
       ...current,
@@ -127,6 +135,16 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const clientErrors = validateForm(values);
+    if (live) {
+      try {
+        toLiveInputs(liveOptions);
+      } catch (error) {
+        clientErrors.form =
+          error instanceof Error
+            ? error.message
+            : "Check travel times and cost estimates.";
+      }
+    }
     if (Object.keys(clientErrors).length) {
       setErrors(clientErrors);
       setStatus("idle");
@@ -140,7 +158,12 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
     setStatus("loading");
     try {
       if (live) {
-        setLiveResult(await createLivePlan(toApiRequest(values)));
+        const version = ++liveRequestVersion.current;
+        const draft = await createLivePlan({
+          ...toApiRequest(values),
+          ...toLiveInputs(liveOptions),
+        });
+        if (version === liveRequestVersion.current) setLiveResult(draft);
         setStatus("idle");
         return;
       }
@@ -212,7 +235,7 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
           <h1>Plan around what matters.</h1>
           <p>
             {live
-              ? "Discover real places and a provisional day-by-day walking plan. Your budget is recorded, but cannot be checked until all trip costs are known."
+              ? "Discover real places and a provisional day-by-day walking plan. Add travel times and your cost estimates to check the draft against your own inputs."
               : "Set the essentials once. TripPilot builds a clear, budget-aware proposal and checks every hard constraint."}
           </p>
         </header>
@@ -430,7 +453,7 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
                     </div>
                     <p className="hint" id="budget-hint">
                       {live
-                        ? "Your all-in target, not a price quote. Live budget compliance is not yet verified."
+                        ? "Your all-in target, not a price quote. Optional category estimates let you check your own costs against it."
                         : "Include transport, stay, activities, meals, fees, and taxes."}
                     </p>
                     <FieldError field="budget" errors={errors} />
@@ -492,6 +515,18 @@ export function TripPlanner({ live = false }: { live?: boolean }) {
                 </div>
               </section>
 
+              {live && (
+                <LiveInputs
+                  options={liveOptions}
+                  currency={values.currency}
+                  onChange={(options) => {
+                    liveRequestVersion.current++;
+                    setLiveResult(null);
+                    setLiveOptions(options);
+                    setErrors((current) => ({ ...current, form: undefined }));
+                  }}
+                />
+              )}
               <section
                 className="formSection"
                 aria-labelledby="interests-title"
