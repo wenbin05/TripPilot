@@ -52,6 +52,13 @@ The initial suite should include:
 
 ### Coordinator evaluation
 
+The post-MVP offline agent-loop suite is separate from the historical hosted
+coordinator benchmark. `tests/unit/test_agent_workflow.py` exercises scripted
+tool requests, structured observations, repair, budgets on call counts,
+deadline handling, and final/fallback revalidation. These tests establish
+execution safety, not LLM quality. See `AGENTIC_CORE.md` for the staged plan and
+required future hosted comparison; the V1–V3 benchmark results remain unchanged.
+
 The completed coordinator V1 and V2 protocols are preserved at
 `data/evaluation/coordinator-eval-v1.json` and
 `data/evaluation/coordinator-eval-v2.json`. V2 passed its operational gates but

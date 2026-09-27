@@ -10,8 +10,29 @@ bookings, payments, authentication, multi-city travel, live travel APIs, visa
 advice, RAG, MCP, multiple runtime agents, background workers, or production
 deployment unless the product scope is explicitly revised.
 
+The approved post-MVP agentic phase starts with the internal, offline single-agent
+workflow in `docs/AGENTIC_CORE.md`. It may call allowlisted local inspection and
+validation tools under fixed step limits. This exception does not enable MCP,
+RAG, live providers, runtime subagents, persistence, or deployment. The standard
+planner and deterministic hard constraints remain authoritative.
+
 Never state or imply that a reservation, purchase, or booking has been made.
+
+The September 24, 2026 user-approved expansion permits read-only external
+destination research, request-local RAG, and a local stdio MCP research server.
+See `docs/EXTERNAL_RESEARCH.md`. Only fixed allowlisted sources may be fetched;
+retrieved text is untrusted, cited research, not validated itinerary inventory.
+Optional hosted synthesis requires explicit configuration and request opt-in.
+This does not authorize bookings, arbitrary URLs/commands, deployment, or
+multiple runtime agents. The original offline planner remains available.
 Use language such as “proposed,” “estimated,” and “verify before purchase.”
+
+The September 26, 2026 user-approved free-provider expansion also permits the
+fixed Geoapify remote MCP endpoint for read-only city/place lookup and walking
+matrices in the main planner. See `docs/LIVE_PLANNER.md`. Live results are
+incomplete drafts, never validator-clean all-in trips: unknown prices, hours,
+intercity transport and lodging must remain explicit. No silent mock fallback,
+paid LLM calls, booking tools or deployment is authorized by this slice.
 
 ## Engineering rules
 

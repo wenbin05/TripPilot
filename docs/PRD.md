@@ -2,6 +2,12 @@
 
 ## 1. Product summary
 
+September 26 expansion: the main page now offers a live place-backed draft via
+the free Geoapify project and its remote MCP tools. The offline MVP below is
+preserved at `/demo`. `docs/LIVE_PLANNER.md` specifies the new acceptance scope:
+real places and walking times, not complete live transport/lodging inventory.
+Unknown costs and hours block any claim of full feasibility or budget validity.
+
 TripPilot is a constraint-aware travel-planning assistant for university
 students planning affordable short trips around Canada and nearby US
 destinations. The first MVP demonstrates that a user can provide practical
@@ -222,6 +228,32 @@ medical, dietary, mobility, accessibility, and current-availability requests in
 this field must not be presented as satisfied.
 
 ## 14. Open product decisions
+
+### Approved external research expansion (2026-09-24)
+
+The user explicitly approved RAG and MCP with external sources. This supersedes
+the deferral of those two capabilities for the new research experience, not the
+historical MVP contract. Users may research any named English Wikivoyage guide
+and ask a bounded question. The system fetches current guide content, chunks
+and ranks passages, and returns citations with revision and retrieval time.
+Optional model synthesis must cite retrieved passage IDs and be labelled as
+unverified; absent configuration returns evidence, never invented answers.
+The web API uses the same tool contract exposed to MCP clients. No live travel
+inventory is inferred from prose: transport, lodging, prices, operating windows,
+and all-in itinerary validation remain in the separate mock planner.
+See `EXTERNAL_RESEARCH.md` for acceptance and security limits.
+
+### Approved post-MVP direction (2026-09-23)
+
+Build toward an evaluated single-agent planning workflow. The first slice is
+an internal offline state machine with strict local tool inputs/outputs,
+request-scoped canonical candidates, bounded tool observations, and safe
+fallback. See `AGENTIC_CORE.md` for implementation stages and acceptance gates.
+The existing coordinator V1–V3 results remain historical negative evidence for
+candidate ranking, not a verdict on tool-assisted planning. Hosted tool calling,
+candidate revision, and a new public opt-in require their own tested slices.
+The longer-term MCP, retrieval, persistence, and deployment roadmap remains
+separately scoped; it is not part of this slice or the accepted first MVP.
 
 - Exact supported origin/destination list and contents of the initial fixture set.
 - Whether the traveller maximum of 10 is suitable for the intended UX.

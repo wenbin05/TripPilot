@@ -17,6 +17,79 @@
   --shadow: 0 12px 34px rgba(23, 32, 30, 0.08);
 }
 
+.research-shell {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+.research-shell nav,
+.research-entry {
+  margin-bottom: 28px;
+}
+.research-entry {
+  padding: 16px 24px 0;
+  text-align: right;
+}
+.research-shell h1 {
+  margin-top: 12px;
+}
+.research-card {
+  padding: 24px;
+  margin: 24px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.research-card > label {
+  display: block;
+  margin: 16px 0 8px;
+  font-weight: 600;
+}
+.research-card > input,
+.research-card > textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.research-card details {
+  margin: 20px 0;
+}
+.research-card button {
+  background: var(--brand);
+  color: white;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 8px;
+}
+.research-card button:disabled {
+  opacity: 0.65;
+}
+.research-card blockquote {
+  margin: 12px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.research-card small,
+.research-shell .helper {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.research-notice {
+  background: var(--warning-soft);
+  padding: 16px;
+  border-radius: 8px;
+}
+.research-shell a,
+.research-shell h3 {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .research-card {
+    padding: 16px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -842,6 +915,42 @@ footer {
   .resultAtGlance dl {
     grid-template-columns: 1fr;
   }
+}
+
+.liveResult {
+  margin-block: 2rem;
+  overflow-wrap: anywhere;
+}
+
+.liveGaps {
+  padding: 1rem 1.25rem;
+  margin-block: 1.5rem;
+  border: 1px solid #d7c596;
+  border-radius: 12px;
+  background: #fff9eb;
+}
+
+.liveDay {
+  padding: 1.25rem;
+  margin-block: 1rem;
+  border: 1px solid #dbe2de;
+  border-radius: 16px;
+  background: white;
+}
+
+.liveDay ol {
+  padding-left: 1.25rem;
+}
+
+.liveDay li + li {
+  margin-top: 1.5rem;
+  border-top: 1px solid #dbe2de;
+  padding-top: 1rem;
+}
+
+.liveDay h4 {
+  margin-block: 0.5rem;
+  font-size: 1.125rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

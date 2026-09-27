@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "TripPilot | Proposed student trip itineraries",
   description:
-    "Build a constraint-aware proposed itinerary from mock travel data.",
+    "Discover live places and walking drafts, with an offline itinerary demo.",
 };
 
 export default function RootLayout({

@@ -64,3 +64,11 @@ on `codex/mvp-demo-acceptance`:
 
 This is an engineering acceptance pass, not a student usability study. A
 separate 200% browser-zoom check and independent user feedback remain outstanding.
+
+## Integrated acceptance, September 23, 2026
+
+The same scenarios passed again on the integrated revision, with 363 backend
+and 58 frontend tests and saved desktop/mobile screenshots. See
+[the integrated acceptance addendum](FINAL_MVP_ACCEPTANCE.md). Actual 200%
+browser zoom remains the sole open engineering completion gate; independent
+student feedback is a later follow-up.
